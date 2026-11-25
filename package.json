@@ -7,7 +7,8 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "verifier": "node scripts/verifier-banque.mjs"
+    "verifier": "node scripts/verifier-banque.mjs",
+    "deployer": "npm run verifier && npm run build && gh-pages -d dist -t -m \"Mise à jour du jeu\""
   },
   "keywords": [],
   "author": "",
