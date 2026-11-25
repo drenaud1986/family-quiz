@@ -1,0 +1,62 @@
+[
+  {
+    "id": "gourmandises",
+    "label": "Gourmandises",
+    "emoji": "🍰"
+  },
+  {
+    "id": "loisirs",
+    "label": "Loisirs",
+    "emoji": "🎮"
+  },
+  {
+    "id": "animaux",
+    "label": "Animaux",
+    "emoji": "🐾"
+  },
+  {
+    "id": "voyages",
+    "label": "Voyages et rêves",
+    "emoji": "✈️"
+  },
+  {
+    "id": "ecole-travail",
+    "label": "École et travail",
+    "emoji": "🏫"
+  },
+  {
+    "id": "ecrans",
+    "label": "Films, séries et musique",
+    "emoji": "🎬"
+  },
+  {
+    "id": "peurs",
+    "label": "Peurs et manies",
+    "emoji": "😱"
+  },
+  {
+    "id": "et-si",
+    "label": "Et si… ?",
+    "emoji": "🤔"
+  },
+  {
+    "id": "duels",
+    "label": "Plutôt ceci ou cela ?",
+    "emoji": "⚖️"
+  },
+  {
+    "id": "famille",
+    "label": "Famille et souvenirs",
+    "emoji": "👨‍👩‍👧‍👦"
+  },
+  {
+    "id": "personnalite",
+    "label": "Personnalité",
+    "emoji": "💭"
+  },
+  {
+    "id": "futur",
+    "label": "Futur",
+    "emoji": "🚀"
+  }
+]

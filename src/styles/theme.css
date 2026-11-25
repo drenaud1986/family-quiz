@@ -1,0 +1,121 @@
+/* Thème unique de Family Quiz : toutes les valeurs partagées sont ici. */
+:root {
+  color-scheme: dark;
+
+  /* Plateau */
+  --fond-1: #1a0b3d;
+  --fond-2: #2d1066;
+  --fond-3: #4a1aa3;
+  --carte: rgba(255, 255, 255, 0.1);
+  --carte-forte: rgba(255, 255, 255, 0.18);
+  --bord: rgba(255, 255, 255, 0.22);
+  --ombre: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --ombre-forte: 0 14px 40px rgba(0, 0, 0, 0.5);
+
+  /* Couleurs vives */
+  --or: #ffc83d;
+  --or-clair: #ffe17a;
+  --rose: #ff4fa3;
+  --cyan: #2fd3ff;
+  --vert: #3ddc84;
+  --rouge: #ff5a5a;
+  --violet: #b46bff;
+
+  /* Texte */
+  --texte: #ffffff;
+  --texte-doux: rgba(255, 255, 255, 0.78);
+  --texte-faible: rgba(255, 255, 255, 0.55);
+  --texte-sur-or: #2d1066;
+  --or-fonce: #c98a00;
+  --rose-fonce: #b02a6c;
+  --rouge-fonce: #b83030;
+  --champ: rgba(0, 0, 0, 0.25);
+  --or-voile: rgba(255, 200, 61, 0.25);
+
+  /* Espacements (base 4) */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 24px;
+  --e-6: 32px;
+  --e-7: 48px;
+
+  /* Typographie */
+  --police: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --t-petit: 15px;
+  --t-normal: 18px;
+  --t-moyen: 22px;
+  --t-grand: 28px;
+  --t-titre: 36px;
+  --t-geant: 56px;
+
+  /* Formes */
+  --r-petit: 12px;
+  --r-moyen: 20px;
+  --r-grand: 28px;
+  --r-rond: 999px;
+
+  /* Tactile */
+  --cible: 56px;
+
+  /* Durées */
+  --d-rapide: 160ms;
+  --d-normale: 320ms;
+  --d-lente: 600ms;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--fond-1);
+  color: var(--texte);
+  font-family: var(--police);
+  font-size: var(--t-normal);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

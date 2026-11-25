@@ -1,0 +1,30 @@
+{
+  "name": "familyquiz",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "verifier": "node scripts/verifier-banque.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "@vite-pwa/assets-generator": "^2.0.0",
+    "gh-pages": "^6.3.0",
+    "svelte": "^5.59.1",
+    "vite": "^6.4.6",
+    "vite-plugin-pwa": "^2.0.0"
+  },
+  "dependencies": {
+    "@fontsource/fredoka": "^5.3.0",
+    "canvas-confetti": "^1.9.4",
+    "dexie": "^4.4.7"
+  },
+  "type": "module"
+}
