@@ -16,18 +16,18 @@ Le jeu s'ouvre sur `http://localhost:5173`. Grâce à l'option `--host`, il est 
 
 ## Installer le jeu sur la tablette
 
-1. Construire la version finale :
-   ```powershell
-   npm run build
-   ```
-   Le dossier `dist/` contient tout le jeu.
-2. Mettre ce dossier en ligne sur un hébergement HTTPS gratuit, par exemple :
-   - **Netlify Drop** : glisser le dossier `dist/` sur https://app.netlify.com/drop ;
-   - **GitHub Pages** : publier le contenu de `dist/` dans un dépôt GitHub.
-3. Sur la tablette, ouvrir l'adresse obtenue dans Chrome, puis menu ⋮ › **Installer l'application** (ou « Ajouter à l'écran d'accueil »).
-4. Ouvrir le jeu une première fois avec Internet : ensuite, il fonctionne en mode avion.
+Le jeu est publié sur GitHub Pages : **https://drenaud1986.github.io/family-quiz/**
 
-Les mises à jour se font en republiant `dist/` : la tablette les récupère toute seule à la prochaine ouverture avec Internet.
+1. Sur la tablette, ouvrir cette adresse dans Chrome, puis menu ⋮ › **Installer l'application** (ou « Ajouter à l'écran d'accueil »).
+2. Ouvrir le jeu une première fois avec Internet : ensuite, il fonctionne en mode avion.
+
+### Publier une mise à jour
+
+```powershell
+npm run deployer
+```
+
+Cette commande vérifie la banque, compile le jeu et l'envoie sur la branche `gh-pages`. Le site est à jour une minute plus tard. La tablette récupère la nouvelle version toute seule à la prochaine ouverture avec Internet.
 
 ## La banque de questions
 
