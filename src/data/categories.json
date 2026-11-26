@@ -58,5 +58,10 @@
     "id": "futur",
     "label": "Futur",
     "emoji": "🚀"
+  },
+  {
+    "id": "rigolo",
+    "label": "Phrases rigolotes",
+    "emoji": "😂"
   }
 ]

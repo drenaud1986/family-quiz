@@ -6,6 +6,7 @@
   import Avatar from '../composants/Avatar.svelte';
   import Chrono from '../composants/Chrono.svelte';
   import GrilleChoix from '../composants/GrilleChoix.svelte';
+  import PhraseTrou from '../composants/PhraseTrou.svelte';
   import Relais from '../composants/Relais.svelte';
   import Annonce from '../composants/Annonce.svelte';
   import BandeauScores from '../composants/BandeauScores.svelte';
@@ -97,10 +98,16 @@
       pause(1200).then(() => dire(bulle));
     } else if (p === 'candidats') {
       humeur = 'parle';
-      bulle = 'Ce soir, nos candidats sont…';
       sons.applaudissements(2);
       const noms = partie.joueurs.map((id) => parId[id]?.nom).join(', ');
-      dire(`Ce soir, nos candidats sont : ${noms} !`);
+      if (partie.cible) {
+        const c = parId[partie.cible];
+        bulle = `Émission spéciale : qui connaît le mieux ${c?.nom} ?`;
+        dire(`Ce soir, émission spéciale ! Qui connaît le mieux ${c?.nom} ? Nos candidats : ${noms} !`);
+      } else {
+        bulle = 'Ce soir, nos candidats sont…';
+        dire(`Ce soir, nos candidats sont : ${noms} !`);
+      }
     } else if (p === 'titre') {
       humeur = 'parle';
       bulle = infoManche.regle;
@@ -129,7 +136,7 @@
   }
 
   function candidatsRoulette() {
-    if (manche.id === 'qui' || !etape) return [];
+    if (manche.id === 'qui' || !etape || partie.cible) return [];
     const equipe = equipeDe(partie, etape.actifId);
     return partie.joueurs.filter((id) => id !== etape.actifId && !equipe?.joueurs.includes(id)).map((id) => parId[id]);
   }
@@ -262,6 +269,12 @@
     {:else if phase === 'candidats'}
       <div class="centre">
         <Mascotte {humeur} {bulle} taille={tp(120)} />
+        {#if partie.cible}
+          <div class="cible-speciale">
+            <span>🎯 Tout sur</span>
+            <Avatar joueur={parId[partie.cible]} taille={tp(80)} nom saute />
+          </div>
+        {/if}
         {#if partie.equipes}
           <div class="equipes">
             {#each partie.equipes as e, i}
@@ -331,8 +344,9 @@
           <div class="categorie">{categorieParId[etape.categorie]?.emoji} {infoManche.titre}</div>
         {/if}
         <h1 class="texte" class:long={etape.texte.length > 80}>{typo(etape.texte)}</h1>
+        {#if etape.phrase}<PhraseTrou phrase={etape.phrase} />{/if}
         {#if manche.id === 'vraifaux'}<p class="sous">Vrai ou faux ?</p>{/if}
-        {#if manche.id === 'qui' && etape.rappel}<p class="sous">Question posée : « {etape.rappel} »</p>{/if}
+        {#if manche.id === 'qui' && etape.rappel && !etape.phrase}<p class="sous">Question posée : « {etape.rappel} »</p>{/if}
 
         {#if etape.forme === 'oral'}
           {#if phase === 'question'}
@@ -534,6 +548,18 @@
     font-weight: 700;
     color: var(--or);
     animation: pulse 0.8s ease-in-out infinite alternate;
+  }
+  .cible-speciale {
+    display: flex;
+    align-items: center;
+    gap: var(--e-3);
+    padding: var(--e-2) var(--e-4);
+    border-radius: var(--r-grand);
+    border: 3px solid var(--or);
+    background: var(--or-voile);
+    font-size: var(--t-moyen);
+    font-weight: 700;
+    animation: entre 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .numero {
     padding: var(--e-1) var(--e-5);

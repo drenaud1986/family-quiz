@@ -18,6 +18,26 @@
   const titres = $derived(titresPodium(partie, parId));
   const marches = $derived([classement[1], classement[0], classement[2]]);
 
+  /** Mode « Qui connaît le mieux… ? » : taux de bonnes réponses de chaque candidat sur la cible. */
+  const connaissance = $derived.by(() => {
+    if (!partie.cible) return [];
+    return partie.joueurs
+      .map((id) => {
+        let ok = 0;
+        let total = 0;
+        for (const m of partie.manches) {
+          const res = m.id === 'rafale' ? m.joueurs.filter((t) => t.actifId === id).flatMap((t) => t.resultats) : m.etapes.filter((x) => x.actifId === id && x.resultat).map((x) => x.resultat);
+          for (const x of res) {
+            total++;
+            if (x.correct) ok++;
+          }
+        }
+        const pct = total ? Math.round((ok / total) * 100) : 0;
+        return { id, pct, verdict: pct >= 80 ? 'Expert absolu ! 🏆' : pct >= 60 ? 'Très bonne connaissance 👏' : pct >= 40 ? 'Pas mal, mais peut mieux faire 😉' : 'Il va falloir discuter un peu plus ! 😅' };
+      })
+      .sort((a, b) => b.pct - a.pct);
+  });
+
   let etape = $state(0); // 0 rien, 1 troisième, 2 deuxième, 3 premier
   let fin = $state(false);
   let records = $state([]);
@@ -87,6 +107,19 @@
 <section class="podium">
   <h1>🏆 Le podium</h1>
   <Mascotte humeur={fin ? 'fete' : 'suspense'} taille={tp(110)} bulle={fin ? annonceVainqueur() : 'Roulement de tambour…'} />
+
+  {#if partie.cible && fin}
+    <div class="connaissance">
+      <p class="titre-connaissance">Qui connaît le mieux {parId[partie.cible]?.nom} {parId[partie.cible]?.emoji} ?</p>
+      {#each connaissance as c, i}
+        <div class="ligne-connaissance" style="--i: {i}">
+          <Avatar joueur={parId[c.id]} taille={40} />
+          <div class="jauge"><div class="rempli" style="width: {c.pct}%"></div><span>{c.pct} %</span></div>
+          <small>{c.verdict}</small>
+        </div>
+      {/each}
+    </div>
+  {/if}
 
   {#if equipes && fin}
     <div class="equipes">
@@ -249,6 +282,56 @@
   }
   .autres strong {
     margin-left: auto;
+  }
+  .connaissance {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--e-2);
+    padding: var(--e-3);
+    border-radius: var(--r-moyen);
+    border: 2px solid var(--or);
+    background: var(--or-voile);
+  }
+  .titre-connaissance {
+    text-align: center;
+    font-weight: 700;
+    font-size: var(--t-moyen);
+  }
+  .ligne-connaissance {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: var(--e-1) var(--e-3);
+    animation: arrive var(--d-lente) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: calc(var(--i) * 0.3s);
+  }
+  .ligne-connaissance small {
+    grid-column: 2;
+    color: var(--texte-doux);
+  }
+  .jauge {
+    position: relative;
+    height: 24px;
+    border-radius: var(--r-rond);
+    background: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+  }
+  .rempli {
+    height: 100%;
+    background: linear-gradient(90deg, var(--rose), var(--or));
+    animation: remplir 1.4s ease-out;
+  }
+  .jauge span {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: var(--t-petit);
+  }
+  @keyframes remplir {
+    from { width: 0; }
   }
   .records {
     width: 100%;

@@ -5,13 +5,14 @@
   import Bouton from '../composants/Bouton.svelte';
   import Mascotte from '../composants/Mascotte.svelte';
   import GrilleChoix from '../composants/GrilleChoix.svelte';
+  import PhraseTrou from '../composants/PhraseTrou.svelte';
   import { aller, accueil, retour, intercepterRetour } from '../lib/etat.svelte.js';
-  import { db, listerJoueurs, listerReponses, listerHistorique, enregistrerReponse, enregistrerPartie } from '../lib/db.js';
+  import { listerJoueurs, listerReponses, enregistrerReponse } from '../lib/db.js';
   import { preparerQuestionnaire, estPremiereFois } from '../lib/selection.js';
   import { categorieParId, choixParId, questionParId } from '../lib/banque.js';
   import { remplir, majuscule, typo } from '../lib/grammaire.js';
   import { tranche } from '../lib/joueurs.js';
-  import { genererManches, formerEquipes } from '../lib/jeu.js';
+  import { creerPartie } from '../lib/partie.js';
   import { dire, taire } from '../lib/appareil.js';
   import { sons } from '../lib/audio.js';
   import { onDestroy } from 'svelte';
@@ -132,25 +133,12 @@
 
   async function lancerEmission() {
     phase = 'lancement';
-    const [reponses, historique, parties] = await Promise.all([listerReponses(), listerHistorique(), db.parties.where('terminee').equals(1).toArray()]);
-    const presents = ordre;
-    const equipes = formerEquipes(mode, presents);
-    const partiesRecentes = parties
-      .filter((p) => !p.abandonnee)
-      .sort((a, b) => b.date - a.date)
-      .slice(0, 3)
-      .map((p) => p.id);
-    // Seuls les candidats présents comptent : aucune question ne parle d'un absent.
-    const manches = genererManches({ joueursPartie: presents, tousJoueurs: presents, reponses, historique, partiesRecentes, equipes }, duree);
-    const total = manches.reduce((n, m) => n + (m.etapes?.length ?? m.joueurs.length), 0);
-    if (manches.length < 2 || total < presents.length * 2) {
+    const partieId = await creerPartie({ presents: ordre, mode, duree });
+    if (!partieId) {
       phase = 'manque';
       return;
     }
-    const partie = { date: Date.now(), terminee: 0, joueurs: presents.map((j) => j.id), mode, equipes, duree, manches, pos: { m: 0, e: 0 }, phase: 'generique' };
-    partie.id = await enregistrerPartie(partie);
-    await enregistrerPartie(partie);
-    aller('emission', { partieId: partie.id }, { remplacer: true });
+    aller('emission', { partieId }, { remplacer: true });
   }
 
   function encorePlus() {
@@ -192,7 +180,12 @@
     {#key indexQuestion}
       <div class="carte">
         <div class="categorie">{categorieParId[q.categorie]?.emoji} {categorieParId[q.categorie]?.label}</div>
+        {#if q.type === 'drole'}
+          <p class="consigne-drole">😂 Quelle fin te fait le plus rire ?</p>
+          <PhraseTrou phrase={q.questionnaire} />
+        {:else}
         <h1 class="question" class:petit-texte={remplir(q.questionnaire, joueur).length > 55}>{typo(remplir(q.questionnaire, joueur))}</h1>
+        {/if}
 
         {#if item.miseAJour && confirmationMiseAJour}
           <div class="mise-a-jour">
@@ -204,6 +197,8 @@
               <Bouton variante="carte" onclick={() => (confirmationMiseAJour = false)}>✏️ Non, je change</Bouton>
             </div>
           </div>
+        {:else if q.type === 'drole'}
+          <GrilleChoix options={q.choix.map((c) => ({ ...c, label: majuscule(c.label) }))} onchoix={(o) => repondre({ choixId: o.id })} />
         {:else if q.type === 'choix' && !modeAutre}
           <GrilleChoix options={q.choix.map((c) => ({ ...c, label: majuscule(c.label) }))} compact={q.choix.length > 6} onchoix={(o) => repondre({ choixId: o.id })} />
         {:else if q.type === 'duel'}
@@ -314,6 +309,12 @@
     background: var(--carte-forte);
     font-size: var(--t-petit);
     font-weight: 600;
+  }
+  .consigne-drole {
+    text-align: center;
+    font-weight: 700;
+    font-size: var(--t-moyen);
+    color: var(--or);
   }
   .question {
     text-align: center;

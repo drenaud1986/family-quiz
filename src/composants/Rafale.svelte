@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Chrono from './Chrono.svelte';
   import GrilleChoix from './GrilleChoix.svelte';
+  import PhraseTrou from './PhraseTrou.svelte';
   import { sons, lancerMusiqueRafale, arreterMusique } from '../lib/audio.js';
   import { vibrer, taire } from '../lib/appareil.js';
   import { pointsEtape } from '../lib/jeu.js';
@@ -88,6 +89,7 @@
         <div class="question">
           {#if sujet}<p class="sur">Sur {sujet.emoji} {sujet.nom}</p>{/if}
           <h2>{typo(question.texte)}</h2>
+          {#if question.phrase}<PhraseTrou phrase={question.phrase} />{/if}
           <GrilleChoix
             options={question.options}
             avatars={question.forme === 'avatars'}

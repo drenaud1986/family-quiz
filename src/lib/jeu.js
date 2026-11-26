@@ -16,8 +16,19 @@ export const DUREES = {
 export const MODES = [
   { id: 'individuel', label: 'Chacun pour soi', emoji: '🏆' },
   { id: 'enfants-parents', label: 'Enfants contre parents', emoji: '🧒 🆚 🧑' },
-  { id: 'filles-garcons', label: 'Filles contre garçons', emoji: '👧 🆚 👦' }
+  { id: 'filles-garcons', label: 'Filles contre garçons', emoji: '👧 🆚 👦' },
+  { id: 'connaitre', label: 'Qui connaît le mieux… ?', emoji: '🔍' }
 ];
+
+/** Mode « Qui connaît le mieux… ? » : nombre de questions sur la cible, par durée. */
+export const QUESTIONS_CONNAITRE = {
+  courte: { quiz: 6, vraifaux: 4 },
+  normale: { quiz: 10, vraifaux: 6 },
+  longue: { quiz: 15, vraifaux: 8 }
+};
+
+/** Réponses minimum pour pouvoir être la cible de ce mode. */
+export const MIN_REPONSES_CIBLE = 8;
 
 export const POINTS = { quiz: 100, vraifaux: 50, qui: 100, complicite: 25, multiplicateurRafale: 2, serie: 50 };
 
@@ -112,7 +123,7 @@ function normaliser(texte) {
 /**
  * Prépare tout ce qu'il faut pour générer les questions d'une partie.
  */
-function creerContexte({ joueursPartie, tousJoueurs, reponses, historique, partiesRecentes, equipes }) {
+function creerContexte({ joueursPartie, tousJoueurs, reponses, historique, partiesRecentes, equipes, cible = null }) {
   const rep = {};
   for (const r of reponses) {
     if (r.passee || !questionParId[r.questionId]) continue;
@@ -127,13 +138,15 @@ function creerContexte({ joueursPartie, tousJoueurs, reponses, historique, parti
     parId,
     rep,
     equipes,
+    cible: cible ? parId[cible.id] ?? cible : null,
     recent,
     utilisees: new Set(),
-    nbVise: Object.fromEntries(joueursPartie.map((j) => [j.id, 0]))
+    nbVise: Object.fromEntries([...joueursPartie, ...(cible ? [cible] : [])].map((j) => [j.id, 0]))
   };
 }
 
 function adversaires(ctx, actifId) {
+  if (ctx.cible) return [ctx.cible];
   if (!ctx.equipes) return ctx.joueursPartie.filter((j) => j.id !== actifId);
   const equipe = ctx.equipes.find((e) => e.joueurs.includes(actifId));
   return ctx.joueursPartie.filter((j) => !equipe.joueurs.includes(j.id));
@@ -184,10 +197,13 @@ function formatChoix(c) {
   return { id: c.id, label: majuscule(c.label), emoji: c.emoji };
 }
 
+/** La phrase à trous d'une question « drôle », affichée sous la question. */
+const phraseDrole = (q) => (q.type === 'drole' ? q.questionnaire : undefined);
+
 /** Question de la manche 1 (ou de la rafale si `rapide`). */
 function construireQuiz(ctx, r, sujet, rapide = false) {
   const q = questionParId[r.questionId];
-  const base = { questionId: q.id, sujetId: sujet.id, categorie: q.categorie, texte: remplir(q.quiz, sujet) };
+  const base = { questionId: q.id, sujetId: sujet.id, categorie: q.categorie, texte: remplir(q.quiz, sujet), phrase: phraseDrole(q) };
 
   if (q.type === 'libre' || (q.type === 'choix' && r.texte)) {
     if (rapide) return null;
@@ -231,6 +247,7 @@ function construireVraiFaux(ctx, r, sujet) {
     sujetId: sujet.id,
     categorie: q.categorie,
     texte: remplir(q.affirmation, sujet, vrai ? vraiLabel : fauxLabel),
+    phrase: phraseDrole(q),
     forme: 'choix',
     options: OPTIONS_VF,
     bonne: vrai ? 'vrai' : 'faux',
@@ -264,6 +281,7 @@ function construireQui(ctx, r, auteur, actifId) {
     sujetId: auteur.id,
     categorie: q.categorie,
     texte: remplir(q.qui, null, valeur),
+    phrase: phraseDrole(q),
     rappel: remplir(q.questionnaire, null),
     forme: 'avatars',
     options,
@@ -342,8 +360,12 @@ export function genererManches(donnees, dureeId) {
   const ordre = ordreDuTour(ctx);
   const manches = [];
 
+  // Mode « Qui connaît le mieux… ? » : toutes les questions portent sur la cible.
+  const nbTours = (n, total) => (ctx.cible ? Math.ceil(total / ordre.length) : n);
+  const solo = ctx.cible ? QUESTIONS_CONNAITRE[dureeId] : null;
+
   const quiz = [];
-  for (let t = 0; t < duree.m1; t++) {
+  for (let t = 0; t < nbTours(duree.m1, solo?.quiz); t++) {
     for (const actifId of ordre) {
       const e = genererTour(ctx, actifId, (r, s) => construireQuiz(ctx, r, s));
       if (e) quiz.push(e);
@@ -352,7 +374,7 @@ export function genererManches(donnees, dureeId) {
   if (quiz.length) manches.push({ id: 'quiz', etapes: marquerOr(quiz) });
 
   const vf = [];
-  for (let t = 0; t < duree.m2; t++) {
+  for (let t = 0; t < nbTours(duree.m2, solo?.vraifaux); t++) {
     for (const actifId of ordre) {
       const e = genererTour(ctx, actifId, (r, s) => construireVraiFaux(ctx, r, s));
       if (e) vf.push(e);
@@ -361,7 +383,7 @@ export function genererManches(donnees, dureeId) {
   if (vf.length) manches.push({ id: 'vraifaux', etapes: marquerOr(vf) });
 
   const qui = [];
-  for (let t = 0; t < duree.m3; t++) {
+  for (let t = 0; t < (ctx.cible ? 0 : duree.m3); t++) {
     for (const actifId of ordre) {
       const e = genererQui(ctx, actifId);
       if (e) qui.push(e);

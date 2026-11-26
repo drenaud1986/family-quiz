@@ -44,9 +44,8 @@ export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = nu
     .map((q) => ({
       q,
       score:
-        Math.random() * 4 +
-        Math.min(parAutres[q.id] ?? 0, 2) * 3 +
-        Math.min(autres.filter((a) => estEligible(q, a, n)).length, 2) * 1.5 -
+        Math.random() * 10 +
+        Math.min(autres.filter((a) => estEligible(q, a, n)).length, 2) * 0.5 -
         (passees.has(q.id) ? 4 : 0)
     }));
 
@@ -57,8 +56,13 @@ export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = nu
     libre: libreDispo ? Math.round(cible * 0.2) : 0,
     membre: Math.max(1, Math.round(cible * 0.15)),
     duel: Math.max(1, Math.round(cible * 0.25)),
+    drole: Math.max(1, Math.round(cible * 0.1)),
     choix: cible
   };
+  // Environ 40 % de questions déjà posées à un autre candidat (pour comparer et piéger),
+  // le reste tiré au hasard : chacun a son propre questionnaire.
+  const quotaPartage = Math.round(cible * 0.4);
+  let partagees = 0;
   const minimums = { libre: quotas.libre ? Math.max(1, Math.round(cible * 0.15)) : 0 };
 
   const choisies = [];
@@ -72,7 +76,10 @@ export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = nu
     candidates.forEach((c, i) => {
       const t = c.q.type;
       let s = c.score - (parCategorie[c.q.categorie] ?? 0) * 3;
-      if ((parType[t] ?? 0) >= quotas[t]) s -= 8;
+      if ((parType[t] ?? 0) >= (quotas[t] ?? cible)) s -= 8;
+      const dejaPosee = parAutres[c.q.id] ?? 0;
+      if (dejaPosee && partagees < quotaPartage) s += 5;
+      if (dejaPosee >= 2) s -= 3;
       if (libresManquantes > 0 && restantes <= libresManquantes * 3 && t === 'libre') s += 6;
       if (s > meilleurScore) {
         meilleurScore = s;
@@ -82,6 +89,7 @@ export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = nu
     const [{ q }] = candidates.splice(meilleur, 1);
     parCategorie[q.categorie] = (parCategorie[q.categorie] ?? 0) + 1;
     parType[q.type] = (parType[q.type] ?? 0) + 1;
+    if (parAutres[q.id]) partagees++;
     choisies.push({ question: q });
   }
 

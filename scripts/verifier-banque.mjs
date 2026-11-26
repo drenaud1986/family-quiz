@@ -55,6 +55,10 @@ for (const q of questions) {
       if (typeof q.inclureSoi !== 'boolean') e('champ inclureSoi manquant');
       if (q.qui) e('pas de champ qui sur une question membre');
       break;
+    case 'drole':
+      if (!Array.isArray(q.choix) || q.choix.length !== 4) e('une phrase rigolote a exactement 4 fins');
+      if (!q.questionnaire?.includes('___')) e('la phrase rigolote doit contenir ___');
+      break;
     case 'libre':
       if (q.affirmation) e('pas d’affirmation sur une question libre');
       if (q.ages?.includes('6-8')) e('question libre interdite aux 6-8 ans');
