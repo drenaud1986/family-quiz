@@ -56,7 +56,12 @@
   }
 
   async function enregistrer() {
-    if (!(await sauver())) return;
+    try {
+      if (!(await sauver())) return;
+    } catch (e) {
+      erreur = `Impossible d'enregistrer : ${e?.message ?? e}`;
+      return;
+    }
     sons.bonne();
     retour();
   }
@@ -118,7 +123,7 @@
 
   <label class="champ">
     <span>Nom</span>
-    <input bind:value={nom} maxlength="16" placeholder="Papa, Emma, Mamie…" autocomplete="off" />
+    <input bind:value={nom} maxlength="16" enterkeyhint="done" onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()} placeholder="Papa, Emma, Mamie…" autocomplete="off" />
   </label>
 
   <div class="champ">
@@ -174,7 +179,7 @@
         </div>
       </div>
     {:else}
-      <Bouton variante="discret" onclick={() => (confirmer = true)}>🗑️ Supprimer ce candidat</Bouton>
+      <Bouton variante="danger" large onclick={() => (confirmer = true)}>🗑️ Supprimer ce candidat</Bouton>
     {/if}
   {/if}
 </section>

@@ -5,9 +5,9 @@
   import Bouton from '../composants/Bouton.svelte';
   import { aller, reglages } from '../lib/etat.svelte.js';
   import { listerJoueurs, listerReponses } from '../lib/db.js';
-  import { MODES, DUREES, formerEquipes, modeImpossible, MIN_REPONSES_CIBLE, QUESTIONS_CONNAITRE } from '../lib/jeu.js';
+  import { MODES, DUREES, formerEquipes, modeImpossible, MIN_REPONSES_CIBLE, QUESTIONS_CONNAITRE, MANCHES, MANCHES_PAR_DEFAUT } from '../lib/jeu.js';
   import { creerPartie } from '../lib/partie.js';
-  import { pleinEcran, souhaiterEcranAllume } from '../lib/appareil.js';
+  import { souhaiterEcranAllume } from '../lib/appareil.js';
   import { sons } from '../lib/audio.js';
 
   let joueurs = $state([]);
@@ -17,6 +17,15 @@
   let cibleId = $state(null);
   let nbReponses = $state({});
   let erreurLancement = $state('');
+  let manchesChoisies = $state(new Set(MANCHES_PAR_DEFAUT));
+  let rigolo = $state(false);
+
+  function basculerManche(id) {
+    const m = new Set(manchesChoisies);
+    m.has(id) ? m.delete(id) : m.add(id);
+    if (m.size) manchesChoisies = m;
+    sons.pop();
+  }
   const connaitre = $derived(mode === 'connaitre');
 
   listerJoueurs().then((tous) => {
@@ -53,12 +62,12 @@
   }
 
   async function lancer() {
-    pleinEcran();
     souhaiterEcranAllume(true);
     sons.jingle();
-    if (!connaitre) return aller('questionnaire', { joueurs: selection.map((j) => j.id), mode, duree });
+    const manches = MANCHES_PAR_DEFAUT.filter((m) => manchesChoisies.has(m));
+    if (!connaitre) return aller('questionnaire', { joueurs: selection.map((j) => j.id), mode, duree, manches, rigolo });
     // Pas de questionnaire : on utilise les réponses déjà en mémoire de la cible.
-    const partieId = await creerPartie({ presents: selection, mode, duree, cible: parId[cibleId] });
+    const partieId = await creerPartie({ presents: selection, mode, duree, cible: parId[cibleId], manches, rigolo });
     if (!partieId) return (erreurLancement = `Pas assez de réponses pour ${parId[cibleId].nom}. Ajoute-lui des questions depuis sa fiche.`);
     aller('emission', { partieId });
   }
@@ -120,6 +129,21 @@
     {/if}
     {#if impossible}<p class="erreur">{impossible}</p>{/if}
     {#if erreurLancement}<p class="erreur">{erreurLancement}</p>{/if}
+  </div>
+
+  <div class="bloc">
+    <h2>Au programme</h2>
+    <div class="manches">
+      {#each MANCHES_PAR_DEFAUT as id}
+        {@const m = MANCHES[id]}
+        <button class="puce" class:actif={manchesChoisies.has(id)} disabled={connaitre && id === 'qui'} onclick={() => basculerManche(id)}>
+          {manchesChoisies.has(id) && !(connaitre && id === 'qui') ? '✅' : '⬜'} {m.emoji} {m.titre}
+        </button>
+      {/each}
+    </div>
+    <button class="puce rigolo" class:actif={rigolo} onclick={() => ((rigolo = !rigolo), sons.pop())}>
+      {rigolo ? '✅' : '⬜'} 😂 Émission 100 % rigolote <small>(seulement des phrases rigolotes)</small>
+    </button>
   </div>
 
   <div class="bloc">
@@ -196,6 +220,35 @@
   }
   .present:disabled {
     cursor: default;
+  }
+  .manches {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--e-2);
+  }
+  .puce {
+    min-height: var(--cible);
+    padding: var(--e-2) var(--e-3);
+    border: 2px solid var(--bord);
+    border-radius: var(--r-petit);
+    background: var(--carte);
+    font-size: var(--t-petit);
+    font-weight: 600;
+    text-align: left;
+  }
+  .puce.actif {
+    border-color: var(--or);
+    background: var(--or-voile);
+  }
+  .puce:disabled {
+    opacity: 0.4;
+  }
+  .puce.rigolo {
+    width: 100%;
+  }
+  .puce small {
+    font-weight: 400;
+    color: var(--texte-doux);
   }
   .durees {
     display: grid;

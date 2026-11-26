@@ -13,9 +13,9 @@
   import Rafale from '../composants/Rafale.svelte';
   import ScoresManche from '../composants/ScoresManche.svelte';
   import Podium from '../composants/Podium.svelte';
-  import { aller, accueil, intercepterRetour } from '../lib/etat.svelte.js';
+  import { aller, accueil, intercepterRetour, reglages } from '../lib/etat.svelte.js';
   import { db, listerJoueurs, enregistrerPartie, terminerPartie, ajouterHistorique } from '../lib/db.js';
-  import { MANCHES, calculerScores, pointsEtape, secondesPourRepondre, equipeDe, entreesHistorique, POINTS, SERIE_PAS, serieAvant } from '../lib/jeu.js';
+  import { MANCHES, calculerScores, pointsEtape, secondesPourRepondre, equipeDe, entreesHistorique, POINTS, SERIE_PAS, serieAvant, multiplicateur } from '../lib/jeu.js';
   import { categorieParId } from '../lib/banque.js';
   import { sons, arreterMusique } from '../lib/audio.js';
   import { dire, taire, vibrer, souhaiterEcranAllume } from '../lib/appareil.js';
@@ -174,7 +174,7 @@
     const bonus = correct && serie % SERIE_PAS === 0 ? POINTS.serie : 0;
     etape.resultat = { correct, choisi, serie, bonus };
     partie.phase = 'revelation';
-    gain = correct ? pointsEtape(manche.id, etape) + bonus : 0;
+    gain = correct ? Math.round((pointsEtape(manche.id, etape) + bonus) * multiplicateur(partie, etape.actifId)) : 0;
     serieTexte = serie >= 2 ? `🔥 Série de ${serie} !${bonus ? ` Bonus +${bonus}` : ''}` : '';
     if (bonus) setTimeout(() => sons.serie(), 700);
     // La bonne réponse reste visible au-dessus du panneau de résultat.
@@ -332,9 +332,9 @@
             {/if}
           </div>
           {#if phase === 'question' && etape.forme !== 'oral'}
-            <Chrono secondes={secondesPourRepondre(actif)} enMarche={!enPause} onfin={tempsFini} taille={tp(72)} />
+            <Chrono secondes={secondesPourRepondre(actif, reglages.coupDePouce)} enMarche={!enPause} onfin={tempsFini} taille={tp(72)} />
           {:else if phase === 'question'}
-            <Chrono secondes={secondesPourRepondre(actif) + 10} enMarche={!enPause} onfin={aiRepondu} taille={tp(72)} />
+            <Chrono secondes={secondesPourRepondre(actif, reglages.coupDePouce) + 10} enMarche={!enPause} onfin={aiRepondu} taille={tp(72)} />
           {/if}
         </div>
 
@@ -425,7 +425,7 @@
       {/key}
     {:else if phase === 'rafale'}
       {#key partie.pos.e}
-        <Rafale tour={tourRafale} {parId} {enPause} onfin={finRafale} />
+        <Rafale tour={tourRafale} {parId} multiplicateur={multiplicateur(partie, tourRafale.actifId)} {enPause} onfin={finRafale} />
       {/key}
     {:else if phase === 'rafale-bilan'}
       <div class="centre">

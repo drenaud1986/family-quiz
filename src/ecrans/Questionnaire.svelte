@@ -19,7 +19,7 @@
 
   // seul : questionnaire lancé depuis la fiche d'un candidat (pas d'émission ensuite).
   // questions : liste imposée d'identifiants (modification de réponses).
-  let { joueurs: idsPresents, mode, duree, supplement = false, seul = false, questions: idsQuestions = null } = $props();
+  let { joueurs: idsPresents, mode, duree, supplement = false, seul = false, questions: idsQuestions = null, manches = null, rigolo = false } = $props();
 
   let tous = $state([]);
   let ordre = $state([]);
@@ -57,7 +57,7 @@
     premiereFois = estPremiereFois(joueur, reponses);
     liste = idsQuestions
       ? idsQuestions.map((id) => ({ question: questionParId[id] })).filter((x) => x.question)
-      : preparerQuestionnaire(joueur, tous, reponses, seul ? 10 : supplement ? 5 : null);
+      : preparerQuestionnaire(joueur, tous, reponses, seul ? 10 : supplement ? 5 : null, rigolo);
     indexQuestion = 0;
     if (!liste.length) {
       phase = 'merci';
@@ -133,7 +133,7 @@
 
   async function lancerEmission() {
     phase = 'lancement';
-    const partieId = await creerPartie({ presents: ordre, mode, duree });
+    const partieId = await creerPartie({ presents: ordre, mode, duree, manches, rigolo });
     if (!partieId) {
       phase = 'manque';
       return;
@@ -142,7 +142,7 @@
   }
 
   function encorePlus() {
-    aller('questionnaire', { joueurs: idsPresents, mode, duree, supplement: true }, { remplacer: true });
+    aller('questionnaire', { joueurs: idsPresents, mode, duree, supplement: true, manches, rigolo }, { remplacer: true });
   }
 
   const optionsMembre = $derived(

@@ -1,6 +1,7 @@
 <script>
   import EnTete from '../composants/EnTete.svelte';
   import Bouton from '../composants/Bouton.svelte';
+  import Sauvegarde from '../composants/Sauvegarde.svelte';
   import { reglages, changerReglage } from '../lib/etat.svelte.js';
   import { DUREES } from '../lib/jeu.js';
   import { toutEffacer } from '../lib/db.js';
@@ -34,7 +35,8 @@
   const interrupteurs = [
     { cle: 'son', label: 'Effets sonores', emoji: '🔊' },
     { cle: 'musique', label: 'Musique de la rafale', emoji: '🎵' },
-    { cle: 'voix', label: 'Lecture à voix haute', emoji: '🗣️' }
+    { cle: 'voix', label: 'Lecture à voix haute', emoji: '🗣️' },
+    { cle: 'coupDePouce', label: 'Coup de pouce aux plus jeunes', emoji: '🧒', aide: 'Plus de temps pour répondre, et des points multipliés : ×1,5 pour les 6–8 ans, ×1,25 pour les 9–12 ans.' }
   ];
   const vitesses = [
     { v: 0.85, label: 'Lente' },
@@ -48,7 +50,7 @@
 <section class="reglages">
   {#each interrupteurs as i}
     <button class="ligne" onclick={() => changerReglage(i.cle, !reglages[i.cle])}>
-      <span>{i.emoji} {i.label}</span>
+      <span class="libelle">{i.emoji} {i.label}{#if i.aide}<small>{i.aide}</small>{/if}</span>
       <span class="inter" class:on={reglages[i.cle]}><span></span></span>
     </button>
   {/each}
@@ -94,6 +96,8 @@
     <Bouton variante="carte" taille="petit" onclick={() => sons.generique()}>🎺 Tester les sons</Bouton>
   </div>
 
+  <Sauvegarde />
+
   <div class="bloc danger">
     {#if etapeEffacement === 0}
       <Bouton variante="discret" onclick={() => (etapeEffacement = 1)}>🗑️ Tout effacer</Bouton>
@@ -122,6 +126,8 @@
   }
   .ligne {
     min-height: 64px;
+    gap: var(--e-3);
+    padding-block: var(--e-2) !important;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -132,7 +138,19 @@
     font-size: var(--t-normal);
     font-weight: 600;
   }
+  .libelle {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+  .libelle small {
+    font-weight: 400;
+    font-size: var(--t-petit);
+    color: var(--texte-doux);
+  }
   .inter {
+    flex-shrink: 0;
     width: 56px;
     height: 32px;
     border-radius: var(--r-rond);

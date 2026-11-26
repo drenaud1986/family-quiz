@@ -11,6 +11,39 @@ db.version(1).stores({
   reglages: 'cle'
 });
 
+// Version 2 : questions écrites par la famille (questionnaire et souvenirs).
+db.version(2).stores({ perso: '++id, type' });
+
+const TABLES = ['joueurs', 'reponses', 'historique', 'parties', 'reglages', 'perso'];
+
+// ---------- Questions de la famille ----------
+
+export const listerPerso = () => db.perso.orderBy('id').toArray();
+export const enregistrerPerso = (q) => db.perso.put(JSON.parse(JSON.stringify(q)));
+export const supprimerPerso = (id) => db.perso.delete(id);
+
+// ---------- Sauvegarde ----------
+
+/** Toutes les données de la tablette, dans un objet prêt à être enregistré en fichier. */
+export async function exporterDonnees() {
+  const donnees = { application: 'family-quiz', format: 1, date: new Date().toISOString() };
+  for (const t of TABLES) donnees[t] = await db[t].toArray();
+  return donnees;
+}
+
+/** Remplace toutes les données par celles d'une sauvegarde. */
+export async function importerDonnees(donnees) {
+  if (donnees?.application !== 'family-quiz' || !Array.isArray(donnees.joueurs)) {
+    throw new Error("Ce fichier n'est pas une sauvegarde Family Quiz.");
+  }
+  await db.transaction('rw', TABLES.map((t) => db[t]), async () => {
+    for (const t of TABLES) {
+      await db[t].clear();
+      if (Array.isArray(donnees[t]) && donnees[t].length) await db[t].bulkPut(donnees[t]);
+    }
+  });
+}
+
 /** Demande au navigateur de ne pas effacer les données de lui-même. */
 export async function demanderStockagePersistant() {
   try {
@@ -95,7 +128,8 @@ export async function lireReglages() {
 export const ecrireReglage = (cle, valeur) => db.reglages.put({ cle, valeur });
 
 export async function toutEffacer() {
-  await db.delete();
+  // Vider les tables plutôt que supprimer la base : fonctionne même si l'appli est ouverte ailleurs.
+  await db.transaction('rw', TABLES, () => Promise.all(TABLES.map((t) => db.table(t).clear())));
   location.reload();
 }
 

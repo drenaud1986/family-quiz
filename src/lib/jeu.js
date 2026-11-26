@@ -1,6 +1,6 @@
 import { questionParId, choixParId } from './banque.js';
 import { remplir, majuscule, accord } from './grammaire.js';
-import { roleParId, estPetit } from './joueurs.js';
+import { roleParId, estPetit, tranche } from './joueurs.js';
 import { melanger, auHasard } from './hasard.js';
 
 // ---------------------------------------------------------------------------
@@ -123,10 +123,12 @@ function normaliser(texte) {
 /**
  * Prépare tout ce qu'il faut pour générer les questions d'une partie.
  */
-function creerContexte({ joueursPartie, tousJoueurs, reponses, historique, partiesRecentes, equipes, cible = null }) {
+function creerContexte({ joueursPartie, tousJoueurs, reponses, historique, partiesRecentes, equipes, cible = null }, rigolo = false) {
   const rep = {};
   for (const r of reponses) {
     if (r.passee || !questionParId[r.questionId]) continue;
+    // Émission 100 % rigolote : seulement les phrases rigolotes.
+    if (rigolo && questionParId[r.questionId].type !== 'drole') continue;
     (rep[r.joueurId] ??= {})[r.questionId] = r;
   }
   const recentes = new Set(partiesRecentes);
@@ -354,47 +356,94 @@ function marquerOr(etapes) {
 /**
  * Génère toutes les manches d'une partie, à partir des réponses connues.
  */
-export function genererManches(donnees, dureeId) {
-  const ctx = creerContexte(donnees);
+export const MANCHES_PAR_DEFAUT = ['quiz', 'vraifaux', 'qui', 'rafale'];
+
+/** Ajoute les souvenirs de famille (réponse connue) dans la manche de quiz. */
+function ajouterSouvenirs(ctx, quiz, liste, ordre) {
+  const presents = new Set(ctx.joueursPartie.map((j) => j.id));
+  const utilisables = melanger(liste).filter((s) =>
+    ctx.cible ? s.concerneId === ctx.cible.id : s.concerneId == null || presents.has(s.concerneId) || ctx.parId[s.concerneId]
+  );
+  const nombre = Math.min(utilisables.length, Math.max(2, ordre.length));
+  const couleurs = ['🟣', '🟠', '🔵', '🟢'];
+  for (const s of utilisables.slice(0, nombre)) {
+    const actifs = ordre.filter((id) => id !== s.concerneId);
+    if (!actifs.length) continue;
+    const options = melanger([s.bonne, ...s.fausses.filter((f) => f?.trim())].map((label, i) => ({ id: `s${i}`, label })));
+    const etape = {
+      actifId: auHasard(actifs),
+      questionId: `souvenir-${s.id}`,
+      sujetId: s.concerneId ?? null,
+      categorie: 'perso',
+      souvenir: true,
+      texte: s.texte,
+      forme: 'choix',
+      options: options.map((o, i) => ({ ...o, emoji: couleurs[i % couleurs.length] })),
+      bonne: 's0'
+    };
+    quiz.splice(1 + Math.floor(Math.random() * quiz.length), 0, etape);
+  }
+}
+
+/**
+ * Génère toutes les manches d'une partie, à partir des réponses connues.
+ * @param {object} donnees
+ * @param {string} dureeId
+ * @param {{ manches?: string[], rigolo?: boolean }} [options] manches à jouer, émission 100 % rigolote
+ */
+export function genererManches(donnees, dureeId, options = {}) {
+  const choisies = options.manches?.length ? options.manches : MANCHES_PAR_DEFAUT;
+  const ctx = creerContexte(donnees, options.rigolo);
   const duree = DUREES[dureeId];
   const ordre = ordreDuTour(ctx);
   const manches = [];
+  // Moins de manches choisies : chacune dure un peu plus longtemps.
+  const facteur = choisies.length <= 2 ? 2 : 1;
 
   // Mode « Qui connaît le mieux… ? » : toutes les questions portent sur la cible.
-  const nbTours = (n, total) => (ctx.cible ? Math.ceil(total / ordre.length) : n);
+  const nbTours = (n, total) => (ctx.cible ? Math.ceil(total / ordre.length) : n) * facteur;
   const solo = ctx.cible ? QUESTIONS_CONNAITRE[dureeId] : null;
 
-  const quiz = [];
-  for (let t = 0; t < nbTours(duree.m1, solo?.quiz); t++) {
-    for (const actifId of ordre) {
-      const e = genererTour(ctx, actifId, (r, s) => construireQuiz(ctx, r, s));
-      if (e) quiz.push(e);
+  if (choisies.includes('quiz')) {
+    const quiz = [];
+    for (let t = 0; t < nbTours(duree.m1, solo?.quiz); t++) {
+      for (const actifId of ordre) {
+        const e = genererTour(ctx, actifId, (r, s) => construireQuiz(ctx, r, s));
+        if (e) quiz.push(e);
+      }
     }
+    if (!options.rigolo && donnees.souvenirs?.length) ajouterSouvenirs(ctx, quiz, donnees.souvenirs, ordre);
+    if (quiz.length) manches.push({ id: 'quiz', etapes: marquerOr(quiz) });
   }
-  if (quiz.length) manches.push({ id: 'quiz', etapes: marquerOr(quiz) });
 
-  const vf = [];
-  for (let t = 0; t < nbTours(duree.m2, solo?.vraifaux); t++) {
-    for (const actifId of ordre) {
-      const e = genererTour(ctx, actifId, (r, s) => construireVraiFaux(ctx, r, s));
-      if (e) vf.push(e);
+  if (choisies.includes('vraifaux')) {
+    const vf = [];
+    for (let t = 0; t < nbTours(duree.m2, solo?.vraifaux); t++) {
+      for (const actifId of ordre) {
+        const e = genererTour(ctx, actifId, (r, s) => construireVraiFaux(ctx, r, s));
+        if (e) vf.push(e);
+      }
     }
+    if (vf.length) manches.push({ id: 'vraifaux', etapes: marquerOr(vf) });
   }
-  if (vf.length) manches.push({ id: 'vraifaux', etapes: marquerOr(vf) });
 
-  const qui = [];
-  for (let t = 0; t < (ctx.cible ? 0 : duree.m3); t++) {
-    for (const actifId of ordre) {
-      const e = genererQui(ctx, actifId);
-      if (e) qui.push(e);
+  if (choisies.includes('qui') && !ctx.cible) {
+    const qui = [];
+    for (let t = 0; t < duree.m3 * facteur; t++) {
+      for (const actifId of ordre) {
+        const e = genererQui(ctx, actifId);
+        if (e) qui.push(e);
+      }
     }
+    if (qui.length) manches.push({ id: 'qui', etapes: marquerOr(qui) });
   }
-  if (qui.length) manches.push({ id: 'qui', etapes: marquerOr(qui) });
 
-  const rafale = ordre
-    .map((actifId) => ({ actifId, secondes: duree.rafale, pool: genererRafale(ctx, actifId), resultats: [] }))
-    .filter((r) => r.pool.length >= 3);
-  if (rafale.length) manches.push({ id: 'rafale', joueurs: rafale });
+  if (choisies.includes('rafale')) {
+    const rafale = ordre
+      .map((actifId) => ({ actifId, secondes: duree.rafale, pool: genererRafale(ctx, actifId), resultats: [] }))
+      .filter((r) => r.pool.length >= 3);
+    if (rafale.length) manches.push({ id: 'rafale', joueurs: rafale });
+  }
 
   return manches;
 }
@@ -403,9 +452,21 @@ export function genererManches(donnees, dureeId) {
 // Temps et points
 // ---------------------------------------------------------------------------
 
-export function secondesPourRepondre(joueur) {
-  return estPetit(joueur) ? CHRONO.petit : CHRONO.normal;
+/** Temps pour répondre : plus long pour les plus jeunes (et un peu plus avec le coup de pouce). */
+export function secondesPourRepondre(joueur, coupDePouce = false) {
+  if (estPetit(joueur)) return coupDePouce ? CHRONO.petit + 5 : CHRONO.petit;
+  if (coupDePouce && tranche(joueur) === '9-12') return CHRONO.normal + 5;
+  return CHRONO.normal;
 }
+
+/** Coup de pouce aux plus jeunes : points multipliés selon l'âge. */
+export function bonusAge(joueur) {
+  const t = tranche(joueur);
+  return t === '6-8' ? 1.5 : t === '9-12' ? 1.25 : 1;
+}
+
+/** Multiplicateur de points du joueur actif dans cette partie. */
+export const multiplicateur = (partie, actifId) => partie.bonusAge?.[actifId] ?? 1;
 
 export function pointsEtape(mancheId, etape) {
   if (mancheId === 'rafale') {
@@ -447,7 +508,7 @@ export function calculerScores(partie) {
     }
     for (const e of manche.etapes) {
       if (!e.resultat?.correct) continue;
-      scores[e.actifId] += pointsEtape(manche.id, e) + (e.resultat.bonus ?? 0);
+      scores[e.actifId] += Math.round((pointsEtape(manche.id, e) + (e.resultat.bonus ?? 0)) * multiplicateur(partie, e.actifId));
       if (individuel && manche.id !== 'qui' && scores[e.sujetId] !== undefined) scores[e.sujetId] += POINTS.complicite;
     }
   }
@@ -470,7 +531,7 @@ export function titresPodium(partie, parId) {
         ? manche.joueurs.flatMap((t) => t.resultats.map((r) => ({ actifId: t.actifId, sujetId: r.sujetId, resultat: r })))
         : manche.etapes;
     for (const e of etapes) {
-      if (!e.resultat) continue;
+      if (!e.resultat || e.sujetId == null) continue;
       const d = (devine[e.sujetId] ??= { ok: 0, total: 0 });
       d.total++;
       if (e.resultat.correct) {

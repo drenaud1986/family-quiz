@@ -11,7 +11,7 @@
   import { typo } from '../lib/grammaire.js';
 
   // Le tour de rafale d'un joueur : un maximum de bonnes réponses avant la fin du chrono.
-  let { tour, parId, enPause = false, onfin } = $props();
+  let { tour, parId, enPause = false, onfin, multiplicateur = 1 } = $props();
 
   let compte = $state(3);
   let phase = $state('compte'); // compte | jeu | fini
@@ -44,7 +44,7 @@
     choisi = o.id;
     bonne = question.bonne;
     const correct = o.id === question.bonne;
-    const p = correct ? pointsEtape('rafale', question) : 0;
+    const p = correct ? Math.round(pointsEtape('rafale', question) * multiplicateur) : 0;
     resultats.push({ questionId: question.questionId, sujetId: question.sujetId, correct, points: p });
     if (correct) {
       nbBonnes++;

@@ -58,7 +58,7 @@ window.addEventListener('popstate', () => {
 
 // ---------- Réglages ----------
 
-export const REGLAGES_DEFAUT = { son: true, musique: true, voix: true, vitesseVoix: 1, hauteurVoix: 1.05, nomVoix: '', dureeParDefaut: 'normale' };
+export const REGLAGES_DEFAUT = { son: true, musique: true, voix: true, vitesseVoix: 1, hauteurVoix: 1.05, nomVoix: '', dureeParDefaut: 'normale', coupDePouce: true };
 
 export const reglages = $state({ ...REGLAGES_DEFAUT });
 

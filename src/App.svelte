@@ -8,14 +8,17 @@
   import Questionnaire from './ecrans/Questionnaire.svelte';
   import Emission from './ecrans/Emission.svelte';
   import Reponses from './ecrans/Reponses.svelte';
+  import QuestionsPerso from './ecrans/QuestionsPerso.svelte';
+  import Palmares from './ecrans/Palmares.svelte';
   import { nav, chargerReglages } from './lib/etat.svelte.js';
-  import { demanderStockagePersistant } from './lib/db.js';
+  import { demanderStockagePersistant, listerPerso } from './lib/db.js';
+  import { integrerPerso } from './lib/banque.js';
   import { debloquerAudio } from './lib/audio.js';
 
-  const ecrans = { accueil: Accueil, joueurs: Joueurs, fiche: FicheJoueur, reglages: Reglages, nouvelle: NouvellePartie, questionnaire: Questionnaire, emission: Emission, reponses: Reponses };
+  const ecrans = { accueil: Accueil, joueurs: Joueurs, fiche: FicheJoueur, reglages: Reglages, nouvelle: NouvellePartie, questionnaire: Questionnaire, emission: Emission, reponses: Reponses, perso: QuestionsPerso, palmares: Palmares };
 
   let pret = $state(false);
-  chargerReglages().then(() => (pret = true));
+  Promise.all([chargerReglages(), listerPerso().then(integrerPerso)]).then(() => (pret = true));
   demanderStockagePersistant();
 
   const Ecran = $derived(ecrans[nav.ecran] ?? Accueil);
@@ -47,6 +50,8 @@
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    /* Garde une marge au-dessus de la barre de navigation du téléphone (zone de gestes). */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
     animation: entree var(--d-normale) ease-out;
   }
   @keyframes entree {

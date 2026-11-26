@@ -79,6 +79,10 @@
       <Bouton taille="grand" large desactive={actifs.length < 2} onclick={nouvelle}>🎬 Nouvelle émission</Bouton>
     {/if}
     <Bouton variante="carte" large onclick={() => aller('joueurs')}>👨‍👩‍👧‍👦 Les candidats</Bouton>
+    <div class="duo">
+      <Bouton variante="carte" onclick={() => aller('perso')}>✍️ Nos questions</Bouton>
+      <Bouton variante="carte" onclick={() => aller('palmares')}>🏆 Palmarès</Bouton>
+    </div>
   </div>
 
   <p class="pied">
@@ -152,6 +156,15 @@
     flex-direction: column;
     gap: var(--e-3);
     margin-top: auto;
+  }
+  .duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--e-3);
+  }
+  .duo :global(.bouton) {
+    font-size: var(--t-normal);
+    padding-inline: var(--e-2);
   }
   .pied {
     color: var(--texte-faible);

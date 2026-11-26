@@ -24,7 +24,7 @@ export function estPremiereFois(joueur, reponses) {
  * pour fabriquer de bonnes fausses réponses et la manche « Qui a répondu ça ? ».
  * @returns {{ question: object, miseAJour?: object }[]}
  */
-export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = null) {
+export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = null, rigolo = false) {
   const n = tousJoueurs.length;
   const autres = tousJoueurs.filter((j) => j.id !== joueur.id);
   const miennes = reponses.filter((r) => r.joueurId === joueur.id);
@@ -37,14 +37,18 @@ export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = nu
   }
 
   const premiereFois = estPremiereFois(joueur, reponses);
-  const cible = nombre ?? (premiereFois ? QUESTIONS_PREMIERE_FOIS : QUESTIONS_PARTIES_SUIVANTES);
+  // Émission 100 % rigolote : uniquement des phrases rigolotes (8 la première fois, 4 ensuite).
+  const nbDroles = miennes.filter((r) => !r.passee && questionParId[r.questionId]?.type === 'drole').length;
+  const cible = nombre ?? (rigolo ? (nbDroles < 8 ? 8 : 4) : premiereFois ? QUESTIONS_PREMIERE_FOIS : QUESTIONS_PARTIES_SUIVANTES);
 
   const candidates = questions
-    .filter((q) => !repondues.has(q.id) && estEligible(q, joueur, n))
+    .filter((q) => !repondues.has(q.id) && estEligible(q, joueur, n) && (!rigolo || q.type === 'drole'))
     .map((q) => ({
       q,
       score:
         Math.random() * 10 +
+        // Les questions écrites par la famille passent en priorité.
+        (q.categorie === 'perso' ? 8 : 0) +
         Math.min(autres.filter((a) => estEligible(q, a, n)).length, 2) * 0.5 -
         (passees.has(q.id) ? 4 : 0)
     }));
@@ -56,7 +60,7 @@ export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = nu
     libre: libreDispo ? Math.round(cible * 0.2) : 0,
     membre: Math.max(1, Math.round(cible * 0.15)),
     duel: Math.max(1, Math.round(cible * 0.25)),
-    drole: Math.max(1, Math.round(cible * 0.1)),
+    drole: rigolo ? cible : Math.max(1, Math.round(cible * 0.1)),
     choix: cible
   };
   // Environ 40 % de questions déjà posées à un autre candidat (pour comparer et piéger),
@@ -94,7 +98,7 @@ export function preparerQuestionnaire(joueur, tousJoueurs, reponses, nombre = nu
   }
 
   // « C'est toujours vrai ? » : au plus une réponse ancienne par partie.
-  if (!premiereFois && nombre === null) {
+  if (!premiereFois && nombre === null && !rigolo) {
     const ancienne = miennes
       .filter((r) => !r.passee && Date.now() - r.date > SIX_MOIS && questionParId[r.questionId])
       .sort((a, b) => a.date - b.date)[0];
