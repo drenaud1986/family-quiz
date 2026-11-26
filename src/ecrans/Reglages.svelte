@@ -94,6 +94,7 @@
 
   <div class="bloc">
     <Bouton variante="carte" taille="petit" onclick={() => sons.generique()}>🎺 Tester les sons</Bouton>
+    <p class="aide">Bruitages et jingles : Kenney (kenney.nl), licence libre CC0.</p>
   </div>
 
   <Sauvegarde />

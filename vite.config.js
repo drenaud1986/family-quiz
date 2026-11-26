@@ -34,7 +34,7 @@ export default defineConfig({
       },
       workbox: {
         // Tout est mis en cache : le jeu fonctionne entièrement hors ligne.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,json}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,json,ogg,mp3}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
       }
     })

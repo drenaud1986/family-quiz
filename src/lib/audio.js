@@ -51,8 +51,50 @@ export function debloquerAudio() {
     bufferBruit = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = bufferBruit.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    chargerEnregistrements();
   }
   if (ctx.state === 'suspended') ctx.resume();
+}
+
+// Bruitages enregistrés (Kenney.nl, CC0) dans public/sons/. Sans eux, les sons synthétiques prennent le relais.
+// [fichier, volume] : les fichiers n'ont pas tous le même niveau.
+const ENREGISTREMENTS = {
+  clic: ['clic.ogg', 0.6],
+  pop: ['pop.ogg', 0.7],
+  whoosh: ['whoosh.ogg', 0.6],
+  bonne: ['bonne.ogg', 0.9],
+  mauvaise: ['mauvaise.ogg', 1],
+  jingle: ['jingle.ogg', 1],
+  generique: ['generique.ogg', 1],
+  fanfare: ['fanfare.ogg', 2.4],
+  or: ['or.mp3', 4],
+  serie: ['serie.mp3', 4],
+  tic: ['tic.ogg', 0.5]
+};
+const tampons = {};
+
+function chargerEnregistrements() {
+  for (const [nom, [fichier]] of Object.entries(ENREGISTREMENTS)) {
+    fetch(`${import.meta.env.BASE_URL}sons/${fichier}`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+      .then((a) => new Promise((ok, ko) => ctx.decodeAudioData(a, ok, ko)))
+      .then((b) => (tampons[nom] = b))
+      .catch(() => {});
+  }
+}
+
+/** Joue l'enregistrement s'il est chargé ; renvoie false sinon (le son synthétique est alors utilisé). */
+function jouer(nom, debut = 0, facteur = 1, humide = 0.25) {
+  const b = tampons[nom];
+  if (!b) return false;
+  const src = ctx.createBufferSource();
+  src.buffer = b;
+  const g = ctx.createGain();
+  g.gain.value = ENREGISTREMENTS[nom][1] * facteur;
+  src.connect(g);
+  brancher(g, humide);
+  src.start(ctx.currentTime + debut);
+  return true;
 }
 
 function pret() {
@@ -163,21 +205,26 @@ const N = { do: 523.25, re: 587.33, mi: 659.25, fa: 698.46, sol: 783.99, la: 880
 
 export const sons = {
   clic() {
-    if (!pret()) return;
+    if (!pret() || jouer('clic')) return;
     note(1200, 0, 0.04, { type: 'sine', volume: 0.12, humide: 0.1, attaque: 0.002 });
   },
   pop() {
-    if (!pret()) return;
+    if (!pret() || jouer('pop')) return;
     note(420, 0, 0.1, { type: 'sine', volume: 0.25, glisse: 1100, humide: 0.2, attaque: 0.004 });
   },
   whoosh() {
-    if (!pret()) return;
+    if (!pret() || jouer('whoosh')) return;
     bruit(0, 0.45, { volume: 0.2, filtre: 300, glisseFiltre: 3000, q: 1.2, montee: 0.2, humide: 0.4 });
   },
   generique() {
     if (!pret()) return;
     // Roulement, montée de cuivres, accord final avec cymbale : le générique de l'émission.
     for (let i = 0; i < 10; i++) caisseClaire(i * 0.05, 0.08 + i * 0.015);
+    if (jouer('generique', 0.5)) {
+      grosseCaisse(0.5, 0.6);
+      cymbale(0.5, 0.12);
+      return;
+    }
     const m = [N.do, N.mi, N.sol, N.do2, N.sol, N.do2, N.mi2];
     m.forEach((f, i) => cuivre(f / 2, 0.5 + i * 0.12, 0.22, 0.09));
     grosseCaisse(0.5);
@@ -189,7 +236,7 @@ export const sons = {
     cymbale(1.34, 0.14);
   },
   jingle() {
-    if (!pret()) return;
+    if (!pret() || jouer('jingle')) return;
     [N.sol, N.la, N.si, N.do2].forEach((f, i) => note(f, i * 0.08, 0.18, { type: 'square', volume: 0.07 }));
     [N.do, N.mi, N.sol].forEach((f) => cuivre(f / 2, 0.36, 0.7, 0.08));
     grosseCaisse(0.36);
@@ -198,18 +245,20 @@ export const sons = {
   bonne() {
     if (!pret()) return;
     // « Ding-ding ! » de plateau.
+    if (jouer('bonne')) return;
     cloche(N.mi2, 0, 0.13, 1);
     cloche(N.do2 * 1.5, 0.13, 0.13, 1.4);
   },
   mauvaise() {
     if (!pret()) return;
     // Buzzer « mééé ».
+    if (jouer('mauvaise')) return;
     note(150, 0, 0.55, { type: 'sawtooth', volume: 0.12, glisse: 135, humide: 0.2, attaque: 0.01 });
     note(155, 0, 0.55, { type: 'square', volume: 0.07, glisse: 138, humide: 0.2, attaque: 0.01 });
     note(75, 0, 0.55, { type: 'sawtooth', volume: 0.08, humide: 0.1 });
   },
   tic(urgent = false) {
-    if (!pret()) return;
+    if (!pret() || jouer('tic', 0, urgent ? 1.8 : 1, 0)) return;
     note(urgent ? 1500 : 1000, 0, 0.03, { type: 'square', volume: urgent ? 0.1 : 0.05, humide: 0.05, attaque: 0.002 });
     bruit(0, 0.02, { volume: urgent ? 0.08 : 0.04, filtre: 4000, q: 2, humide: 0 });
   },
@@ -249,6 +298,12 @@ export const sons = {
   },
   fanfare() {
     if (!pret()) return;
+    if (jouer('fanfare', 0.15)) {
+      grosseCaisse(0, 0.5);
+      caisseClaire(0.08, 0.15);
+      cymbale(0.15, 0.13);
+      return;
+    }
     const accords = [
       [N.do, N.mi, N.sol],
       [N.fa, N.la, N.do2],
@@ -266,11 +321,16 @@ export const sons = {
   or() {
     if (!pret()) return;
     // Scintillement doré.
+    if (jouer('or', 0, 1, 0.5)) {
+      bruit(0, 1, { volume: 0.04, filtre: 9000, q: 0.5, typeFiltre: 'highpass', montee: 0.3, humide: 0.8 });
+      return;
+    }
     [N.do2, N.mi2, N.sol2, N.do2 * 2, N.mi2 * 2].forEach((f, i) => cloche(f, i * 0.06, 0.07, 0.9));
     bruit(0, 1, { volume: 0.05, filtre: 9000, q: 0.5, typeFiltre: 'highpass', montee: 0.3, humide: 0.8 });
   },
   serie() {
     if (!pret()) return;
+    if (jouer('serie')) return cymbale(0.3, 0.08);
     [N.do, N.mi, N.sol, N.do2, N.mi2].forEach((f, i) => note(f, i * 0.055, 0.16, { type: 'square', volume: 0.07 }));
     bruit(0.1, 0.6, { volume: 0.1, filtre: 500, glisseFiltre: 6000, q: 1, montee: 0.2, humide: 0.4 });
     cymbale(0.3, 0.08);
