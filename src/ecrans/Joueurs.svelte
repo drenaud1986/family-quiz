@@ -1,4 +1,5 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import EnTete from '../composants/EnTete.svelte';
   import Avatar from '../composants/Avatar.svelte';
   import Bouton from '../composants/Bouton.svelte';
@@ -8,6 +9,8 @@
 
   let joueurs = $state([]);
   let nbReponses = $state({});
+  const actifs = $derived(joueurs.filter((j) => !j.archive));
+  const archives = $derived(joueurs.filter((j) => j.archive));
 
   Promise.all([listerJoueurs(), listerReponses()]).then(([j, r]) => {
     joueurs = j;
@@ -20,9 +23,9 @@
 <EnTete titre="Les candidats" />
 
 <section class="liste">
-  {#each joueurs as j, i (j.id)}
+  {#snippet carte(j, i)}
     <button class="fiche" style="--i: {i}; --couleur: {j.couleur}" onclick={() => aller('fiche', { id: j.id })}>
-      <Avatar joueur={j} taille={64} />
+      <Avatar joueur={j} taille={tp(64)} />
       <div class="infos">
         <strong>{j.nom}</strong>
         <span>{roleParId[j.role]?.emoji} {roleParId[j.role]?.label} · {age(j)} ans</span>
@@ -30,9 +33,20 @@
       </div>
       <span class="fleche">›</span>
     </button>
+  {/snippet}
+
+  {#each actifs as j, i (j.id)}
+    {@render carte(j, i)}
   {:else}
     <p class="vide">Aucun candidat pour l’instant.<br />Inscris toute la famille !</p>
   {/each}
+
+  {#if archives.length}
+    <h2 class="archives">📦 Archivés (absents des parties)</h2>
+    {#each archives as j, i (j.id)}
+      <div class="archive">{@render carte(j, i)}</div>
+    {/each}
+  {/if}
 
   <div class="ajouter">
     <Bouton taille="grand" large onclick={() => aller('fiche', {})}>➕ Ajouter un candidat</Bouton>
@@ -81,6 +95,18 @@
   .fleche {
     font-size: var(--t-titre);
     color: var(--texte-faible);
+  }
+  .archives {
+    margin-top: var(--e-4);
+    font-size: var(--t-normal);
+    color: var(--texte-doux);
+  }
+  .archive {
+    opacity: 0.6;
+    filter: grayscale(0.6);
+  }
+  .archive :global(.fiche) {
+    width: 100%;
   }
   .vide {
     text-align: center;

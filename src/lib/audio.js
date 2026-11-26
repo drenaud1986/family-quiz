@@ -141,6 +141,16 @@ export const sons = {
     accords.forEach((a, i) => a.forEach((f) => note(f, i * 0.28, i === 3 ? 1.2 : 0.3, { type: 'square', volume: 0.08 })));
     cymbale(0.84);
   },
+  or() {
+    if (!pret()) return;
+    [N.do2, N.mi2, N.sol2, N.mi2 * 2].forEach((f, i) => note(f, i * 0.07, 0.35, { type: 'sine', volume: 0.14 }));
+    [N.sol2, N.do2 * 2].forEach((f, i) => note(f, 0.3 + i * 0.12, 0.6, { type: 'triangle', volume: 0.1 }));
+  },
+  serie() {
+    if (!pret()) return;
+    [N.do, N.mi, N.sol, N.do2, N.mi2].forEach((f, i) => note(f, i * 0.06, 0.18, { type: 'square', volume: 0.09 }));
+    bruit(0.3, 0.5, { volume: 0.1, filtre: 5000, q: 0.5, typeFiltre: 'highpass' });
+  },
   points() {
     if (!pret()) return;
     [0, 1, 2, 3].forEach((i) => note(1200 + i * 200, i * 0.05, 0.08, { type: 'sine', volume: 0.12 }));

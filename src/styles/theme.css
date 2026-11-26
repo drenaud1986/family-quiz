@@ -32,23 +32,25 @@
   --champ: rgba(0, 0, 0, 0.25);
   --or-voile: rgba(255, 200, 61, 0.25);
 
-  /* Espacements (base 4) */
+  /* Espacements (base 4) : les grands se resserrent sur les petits écrans */
   --e-1: 4px;
   --e-2: 8px;
   --e-3: 12px;
   --e-4: 16px;
-  --e-5: 24px;
-  --e-6: 32px;
-  --e-7: 48px;
+  --e-5: clamp(16px, 4vmin, 24px);
+  --e-6: clamp(20px, 5.4vmin, 32px);
+  --e-7: clamp(28px, 8vmin, 48px);
 
-  /* Typographie */
+  /* Typographie : tailles fluides, du smartphone (≈ 360 px) à la tablette */
   --police: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif;
-  --t-petit: 15px;
-  --t-normal: 18px;
-  --t-moyen: 22px;
-  --t-grand: 28px;
-  --t-titre: 36px;
-  --t-geant: 56px;
+  --t-petit: clamp(13px, 3.6vmin, 15px);
+  --t-normal: clamp(15px, 4.2vmin, 18px);
+  --t-moyen: clamp(17px, 4.8vmin, 22px);
+  --t-grand: clamp(20px, 5.6vmin, 28px);
+  --t-titre: clamp(22px, 6.4vmin, 36px);
+  --t-geant: clamp(34px, 10vmin, 56px);
+  --t-emoji: clamp(28px, 7vmin, 40px);
+  --t-emoji-grand: clamp(40px, 11vmin, 64px);
 
   /* Formes */
   --r-petit: 12px;
@@ -57,7 +59,7 @@
   --r-rond: 999px;
 
   /* Tactile */
-  --cible: 56px;
+  --cible: clamp(48px, 13vmin, 56px);
 
   /* Durées */
   --d-rapide: 160ms;

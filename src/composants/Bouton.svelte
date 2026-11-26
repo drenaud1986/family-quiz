@@ -40,7 +40,7 @@
     width: 100%;
   }
   .grand {
-    min-height: 72px;
+    min-height: clamp(56px, 9vh, 72px);
     font-size: var(--t-grand);
   }
   .petit {

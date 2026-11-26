@@ -1,4 +1,5 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import { onDestroy } from 'svelte';
   import Mascotte from '../composants/Mascotte.svelte';
   import Bouton from '../composants/Bouton.svelte';
@@ -13,7 +14,7 @@
   import Podium from '../composants/Podium.svelte';
   import { aller, accueil, intercepterRetour } from '../lib/etat.svelte.js';
   import { db, listerJoueurs, enregistrerPartie, terminerPartie, ajouterHistorique } from '../lib/db.js';
-  import { MANCHES, calculerScores, pointsEtape, secondesPourRepondre, equipeDe, entreesHistorique, POINTS } from '../lib/jeu.js';
+  import { MANCHES, calculerScores, pointsEtape, secondesPourRepondre, equipeDe, entreesHistorique, POINTS, SERIE_PAS, serieAvant } from '../lib/jeu.js';
   import { categorieParId } from '../lib/banque.js';
   import { sons, arreterMusique } from '../lib/audio.js';
   import { dire, taire, vibrer, souhaiterEcranAllume } from '../lib/appareil.js';
@@ -36,6 +37,8 @@
   let gain = $state(0);
   let tempsEcoule = $state(false);
   let revele = $state(false);
+  let serieTexte = $state('');
+  let correctCourant = $state(false);
 
   const parId = $derived(Object.fromEntries(tous.map((j) => [j.id, j])));
   const manche = $derived(partie?.manches[partie.pos.m]);
@@ -109,6 +112,8 @@
       gain = 0;
       tempsEcoule = false;
       revele = false;
+      serieTexte = '';
+      correctCourant = false;
       humeur = 'parle';
       bulle = '';
       const lecture = manche.id === 'vraifaux' ? `${etape.texte} Vrai ou faux ?` : etape.texte;
@@ -157,9 +162,16 @@
     }
     bonne = etape.bonne;
     revele = true;
-    etape.resultat = { correct, choisi };
-    partie.phase = "revelation";
-    gain = correct ? pointsEtape(manche.id, etape) : 0;
+    correctCourant = correct;
+    const serie = correct ? serieAvant(partie, etape.actifId, etape) + 1 : 0;
+    const bonus = correct && serie % SERIE_PAS === 0 ? POINTS.serie : 0;
+    etape.resultat = { correct, choisi, serie, bonus };
+    partie.phase = 'revelation';
+    gain = correct ? pointsEtape(manche.id, etape) + bonus : 0;
+    serieTexte = serie >= 2 ? `🔥 Série de ${serie} !${bonus ? ` Bonus +${bonus}` : ''}` : '';
+    if (bonus) setTimeout(() => sons.serie(), 700);
+    // La bonne réponse reste visible au-dessus du panneau de résultat.
+    setTimeout(() => document.querySelector('.question .option.bonne')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 120);
     sauver();
     if (correct) {
       humeur = 'fete';
@@ -227,6 +239,8 @@
   }
 
   const libelleGain = $derived(gain ? `+${gain}` : '');
+  /** Série en cours du joueur actif (affichée près de son nom). */
+  const serieEnCours = $derived(partie && etape && phase === 'question' ? serieAvant(partie, etape.actifId, etape) : 0);
 </script>
 
 {#if partie && phase !== 'chargement'}
@@ -242,12 +256,12 @@
       <div class="centre generique">
         <div class="etoiles">✨</div>
         <h1 class="logo">Family<br /><span>Quiz</span></h1>
-        <Mascotte {humeur} {bulle} taille={170} />
+        <Mascotte {humeur} {bulle} taille={tp(170)} />
         <Bouton taille="grand" onclick={() => allerA('candidats')}>Présenter les candidats 🎤</Bouton>
       </div>
     {:else if phase === 'candidats'}
       <div class="centre">
-        <Mascotte {humeur} {bulle} taille={120} />
+        <Mascotte {humeur} {bulle} taille={tp(120)} />
         {#if partie.equipes}
           <div class="equipes">
             {#each partie.equipes as e, i}
@@ -255,7 +269,7 @@
                 <strong>{e.emoji} {e.nom}</strong>
                 <div class="membres">
                   {#each e.joueurs as id, k}
-                    <div class="entre" style="--k: {i * 3 + k}"><Avatar joueur={parId[id]} taille={72} nom /></div>
+                    <div class="entre" style="--k: {i * 3 + k}"><Avatar joueur={parId[id]} taille={tp(72)} nom /></div>
                   {/each}
                 </div>
               </div>
@@ -265,7 +279,7 @@
         {:else}
           <div class="candidats">
             {#each partie.joueurs as id, k}
-              <div class="entre" style="--k: {k}"><Avatar joueur={parId[id]} taille={92} nom saute /></div>
+              <div class="entre" style="--k: {k}"><Avatar joueur={parId[id]} taille={tp(92)} nom saute /></div>
             {/each}
           </div>
         {/if}
@@ -278,7 +292,7 @@
           <span class="emoji">{infoManche.emoji}</span>
           <h1>{infoManche.titre}</h1>
         </div>
-        <Mascotte {humeur} {bulle} taille={130} />
+        <Mascotte {humeur} {bulle} taille={tp(130)} />
         <Bouton taille="grand" onclick={commencerManche}>On y va ! ▶️</Bouton>
       </div>
     {:else if phase === 'annonce' && actif}
@@ -286,16 +300,18 @@
         <Annonce
           {actif}
           sujet={manche.id === 'qui' ? null : sujet}
+          or={!!etape?.or}
           candidats={candidatsRoulette()}
           onpret={() => allerA('question', false)}
         />
       {/key}
     {:else if (phase === 'question' || phase === 'revelation') && etape}
-      <div class="question">
+      <div class="question" class:en-or={etape.or} class:secoue={revele && !correctCourant} class:tiroir={phase === 'revelation'}>
         <div class="infos">
           <div class="qui-joue">
             <Avatar joueur={actif} taille={40} />
             <span>{actif.nom}</span>
+            {#if serieEnCours >= 2}<span class="flamme" title="Série en cours">🔥{serieEnCours}</span>{/if}
             {#if manche.id !== 'qui' && sujet}
               <span class="fleche">→</span>
               <Avatar joueur={sujet} taille={40} />
@@ -303,13 +319,17 @@
             {/if}
           </div>
           {#if phase === 'question' && etape.forme !== 'oral'}
-            <Chrono secondes={secondesPourRepondre(actif)} enMarche={!enPause} onfin={tempsFini} taille={72} />
+            <Chrono secondes={secondesPourRepondre(actif)} enMarche={!enPause} onfin={tempsFini} taille={tp(72)} />
           {:else if phase === 'question'}
-            <Chrono secondes={secondesPourRepondre(actif) + 10} enMarche={!enPause} onfin={aiRepondu} taille={72} />
+            <Chrono secondes={secondesPourRepondre(actif) + 10} enMarche={!enPause} onfin={aiRepondu} taille={tp(72)} />
           {/if}
         </div>
 
-        <div class="categorie">{categorieParId[etape.categorie]?.emoji} {infoManche.titre}</div>
+        {#if etape.or}
+          <div class="ruban-or">⭐ Question en or · points doublés ⭐</div>
+        {:else}
+          <div class="categorie">{categorieParId[etape.categorie]?.emoji} {infoManche.titre}</div>
+        {/if}
         <h1 class="texte" class:long={etape.texte.length > 80}>{typo(etape.texte)}</h1>
         {#if manche.id === 'vraifaux'}<p class="sous">Vrai ou faux ?</p>{/if}
         {#if manche.id === 'qui' && etape.rappel}<p class="sous">Question posée : « {etape.rappel} »</p>{/if}
@@ -336,7 +356,13 @@
 
         {#if phase === 'revelation'}
           <div class="reaction">
-            <Mascotte {humeur} {bulle} taille={100} />
+            <div class="reaction-haut">
+              <Mascotte {humeur} taille={tp(70)} />
+              <div class="reaction-textes">
+                {#key bulle}<p class="phrase">{typo(bulle)}</p>{/key}
+                {#if serieTexte}{#key serieTexte}<div class="serie">{serieTexte}</div>{/key}{/if}
+              </div>
+            </div>
             {#if libelleGain}
               {#key libelleGain}<div class="gain">{libelleGain}</div>{/key}
             {/if}
@@ -389,8 +415,8 @@
       {/key}
     {:else if phase === 'rafale-bilan'}
       <div class="centre">
-        <Avatar joueur={actif} taille={100} nom saute />
-        <Mascotte {humeur} {bulle} taille={130} />
+        <Avatar joueur={actif} taille={tp(100)} nom saute />
+        <Mascotte {humeur} {bulle} taille={tp(130)} />
         <div class="gain fixe">+{tourRafale.resultats.reduce((s, r) => s + r.points, 0)} pts</div>
         <Bouton taille="grand" onclick={suiteRafale}>{partie.pos.e < manche.joueurs.length - 1 ? 'Candidat suivant ➡️' : 'Voir les scores 📊'}</Bouton>
       </div>
@@ -455,7 +481,7 @@
     text-align: center;
   }
   .logo {
-    font-size: 72px;
+    font-size: clamp(44px, 14vmin, 72px);
     line-height: 0.9;
     color: var(--or);
     text-shadow: 0 6px 0 var(--or-fonce), 0 0 50px rgba(255, 200, 61, 0.5);
@@ -466,7 +492,7 @@
     text-shadow: 0 6px 0 var(--rose-fonce), 0 0 50px rgba(255, 79, 163, 0.5);
   }
   .etoiles {
-    font-size: 48px;
+    font-size: var(--t-emoji);
     animation: tourne 3s linear infinite;
   }
   .candidats {
@@ -524,7 +550,7 @@
     animation: logo 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
   }
   .titre-manche .emoji {
-    font-size: 80px;
+    font-size: var(--t-emoji-grand);
   }
   .titre-manche h1 {
     font-size: var(--t-geant);
@@ -537,6 +563,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--e-3);
+  }
+  .question.tiroir {
+    padding-bottom: 34vh;
   }
   .infos {
     display: flex;
@@ -593,12 +622,93 @@
     color: var(--texte-doux);
   }
   .reaction {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--e-6) var(--e-4) var(--e-4);
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: var(--e-2);
+    background: linear-gradient(transparent, rgba(16, 6, 40, 0.94) 22%);
+    animation: tiroir 0.45s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+  .reaction-haut {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     gap: var(--e-3);
-    margin-top: var(--e-2);
-    position: relative;
+    width: 100%;
+  }
+  .reaction-textes {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--e-2);
+  }
+  .phrase {
+    padding: var(--e-2) var(--e-4);
+    border-radius: var(--r-moyen);
+    background: #fff;
+    color: var(--texte-sur-or);
+    font-weight: 700;
+    font-size: var(--t-moyen);
+    animation: serie 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .serie {
+    padding: var(--e-2) var(--e-4);
+    border-radius: var(--r-rond);
+    background: linear-gradient(90deg, #ff8a3d, var(--rouge));
+    font-weight: 700;
+    font-size: var(--t-normal);
+    box-shadow: 0 0 24px rgba(255, 138, 61, 0.7);
+    animation: serie 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .flamme {
+    padding: 0 var(--e-2);
+    border-radius: var(--r-rond);
+    background: rgba(255, 138, 61, 0.3);
+    font-weight: 700;
+    animation: pulse 0.7s ease-in-out infinite alternate;
+  }
+  .ruban-or {
+    align-self: center;
+    padding: var(--e-1) var(--e-4);
+    border-radius: var(--r-rond);
+    background: linear-gradient(90deg, var(--or-fonce), var(--or-clair), var(--or-fonce));
+    background-size: 200% 100%;
+    color: var(--texte-sur-or);
+    font-weight: 700;
+    font-size: var(--t-petit);
+    animation: brille-or 1.6s linear infinite;
+  }
+  .en-or :global(.option) {
+    border-color: rgba(255, 200, 61, 0.6);
+    box-shadow: 0 0 18px rgba(255, 200, 61, 0.25);
+  }
+  .secoue .texte {
+    animation: secoue 0.45s ease-in-out;
+  }
+  @keyframes tiroir {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+  @keyframes serie {
+    from { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes brille-or {
+    from { background-position: 0% 0; }
+    to { background-position: 200% 0; }
+  }
+  @keyframes secoue {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-10px); }
+    40%, 80% { transform: translateX(10px); }
   }
   .gain {
     position: absolute;
@@ -638,10 +748,10 @@
   }
   .verdict button {
     flex: 1;
-    min-height: 140px;
+    min-height: clamp(96px, 16vh, 140px);
     border: none;
     border-radius: var(--r-grand);
-    font-size: 64px;
+    font-size: var(--t-emoji-grand);
     display: flex;
     flex-direction: column;
     align-items: center;

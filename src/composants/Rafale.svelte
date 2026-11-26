@@ -1,4 +1,5 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import { onMount, onDestroy } from 'svelte';
   import Chrono from './Chrono.svelte';
   import GrilleChoix from './GrilleChoix.svelte';
@@ -74,7 +75,7 @@
     <div class="compte">{#key compte}<span>{compte || 'GO !'}</span>{/key}</div>
   {:else}
     <header class="haut">
-      <Chrono secondes={tour.secondes} enMarche={phase === 'jeu' && !enPause} onfin={finir} taille={84} />
+      <Chrono secondes={tour.secondes} enMarche={phase === 'jeu' && !enPause} onfin={finir} taille={tp(84)} />
       <div class="compteur">
         <span>✅</span>
         {#key nbBonnes}<strong>{nbBonnes}</strong>{/key}
@@ -115,7 +116,7 @@
     place-items: center;
   }
   .compte span {
-    font-size: 140px;
+    font-size: clamp(90px, 28vmin, 140px);
     font-weight: 700;
     color: var(--or);
     text-shadow: 0 8px 0 var(--or-fonce), 0 0 60px rgba(255, 200, 61, 0.6);

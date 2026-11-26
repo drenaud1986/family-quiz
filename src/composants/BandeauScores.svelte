@@ -1,5 +1,6 @@
 <script>
   import Avatar from './Avatar.svelte';
+  import Compteur from './Compteur.svelte';
   import { scoresEquipes } from '../lib/jeu.js';
 
   // Bandeau compact des scores, en haut de l'émission.
@@ -12,15 +13,15 @@
     {#each equipes as e, i}
       <div class="equipe" style="--couleur: {e.couleur}">
         <span>{e.emoji} {e.nom}</span>
-        {#key e.score}<strong class="score">{e.score}</strong>{/key}
+        <Compteur valeur={e.score} />
       </div>
       {#if i === 0}<span class="vs">VS</span>{/if}
     {/each}
   {:else}
     {#each partie.joueurs as id (id)}
       <div class="joueur" class:actif={id === actifId}>
-        <Avatar joueur={parId[id]} taille={34} />
-        {#key scores[id]}<strong class="score">{scores[id] ?? 0}</strong>{/key}
+        <Avatar joueur={parId[id]} taille={partie.joueurs.length > 3 ? 26 : 32} />
+        <Compteur valeur={scores[id] ?? 0} />
       </div>
     {/each}
   {/if}
@@ -36,7 +37,8 @@
     border-radius: var(--r-rond);
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid var(--bord);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
   .joueur {
     display: flex;

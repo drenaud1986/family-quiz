@@ -1,4 +1,5 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import Avatar from './Avatar.svelte';
   import Bouton from './Bouton.svelte';
   import { onMount } from 'svelte';
@@ -7,7 +8,8 @@
   import { typo } from '../lib/grammaire.js';
 
   // « Passe la tablette à… » : écran de passage de relais.
-  let { joueur, titre = 'Passe la tablette à', emoji = '🙈', consigne = '', bouton = "C'est moi !", onpret } = $props();
+  /** secondaire : action facultative sous le bouton principal, ex. { label, onclick } */
+  let { joueur, titre = 'Passe la tablette à', emoji = '🙈', consigne = '', bouton = "C'est moi !", onpret, secondaire = null } = $props();
 
   onMount(() => {
     sons.whoosh();
@@ -18,10 +20,13 @@
 <section class="relais">
   <div class="emoji">{emoji}</div>
   <p class="titre">{titre}</p>
-  <div class="avatar"><Avatar {joueur} taille={150} saute /></div>
+  <div class="avatar"><Avatar {joueur} taille={tp(150)} saute /></div>
   <h1 class="nom" style="color: {joueur.couleur}">{joueur.nom}</h1>
   {#if consigne}<p class="consigne">{typo(consigne)}</p>{/if}
   <Bouton taille="grand" onclick={onpret}>{bouton}</Bouton>
+  {#if secondaire}
+    <Bouton variante="carte" onclick={secondaire.onclick}>{secondaire.label}</Bouton>
+  {/if}
 </section>
 
 <style>
@@ -36,7 +41,7 @@
     text-align: center;
   }
   .emoji {
-    font-size: 56px;
+    font-size: var(--t-emoji);
     animation: balance 1.2s ease-in-out infinite;
   }
   .titre {

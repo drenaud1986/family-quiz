@@ -6,7 +6,7 @@
    * options : [{ id, label, emoji, couleur? }]
    * etat : { choisi?: id, bonne?: id }  (bonne est montrée après la réponse)
    */
-  let { options, onchoix, choisi = null, bonne = null, verrouille = false, colonnes = 2, avatars = false } = $props();
+  let { options, onchoix, choisi = null, bonne = null, verrouille = false, colonnes = 2, avatars = false, compact = false } = $props();
 
   function choisir(o) {
     if (verrouille) return;
@@ -24,7 +24,7 @@
   }
 </script>
 
-<div class="grille" class:avatars style="--colonnes: {colonnes}">
+<div class="grille" class:avatars class:compact style="--colonnes: {colonnes}">
   {#each options as o, i (o.id)}
     <button
       class="option {etatDe(o)}"
@@ -47,8 +47,8 @@
   }
   .option {
     position: relative;
-    min-height: 96px;
-    padding: var(--e-3);
+    min-height: clamp(60px, 10vh, 96px);
+    padding: var(--e-2);
     border: 3px solid var(--bord);
     border-radius: var(--r-moyen);
     background: var(--carte-forte);
@@ -70,23 +70,41 @@
     cursor: default;
   }
   .emoji {
-    font-size: 40px;
+    font-size: var(--t-emoji);
     line-height: 1;
   }
   .rond {
-    width: 64px;
-    height: 64px;
+    width: clamp(44px, 8vh, 64px);
+    height: clamp(44px, 8vh, 64px);
     border-radius: 50%;
     display: grid;
     place-items: center;
     background: var(--couleur);
     box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85);
-    font-size: 38px;
+    font-size: var(--t-emoji);
   }
   .label {
     font-size: var(--t-normal);
     font-weight: 600;
     line-height: 1.2;
+  }
+  /* Beaucoup de choix : emoji à gauche, cartes plus basses (smartphones). */
+  .compact {
+    gap: var(--e-2);
+  }
+  .compact .option {
+    min-height: clamp(50px, 8vh, 72px);
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+    padding: var(--e-1) var(--e-2);
+    gap: var(--e-2);
+  }
+  .compact .emoji {
+    font-size: clamp(24px, 5vmin, 32px);
+  }
+  .compact .label {
+    font-size: var(--t-petit);
   }
   .choisie {
     border-color: var(--or);

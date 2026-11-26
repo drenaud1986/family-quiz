@@ -19,7 +19,10 @@ export const MODES = [
   { id: 'filles-garcons', label: 'Filles contre garçons', emoji: '👧 🆚 👦' }
 ];
 
-export const POINTS = { quiz: 100, vraifaux: 50, qui: 100, complicite: 25, multiplicateurRafale: 2 };
+export const POINTS = { quiz: 100, vraifaux: 50, qui: 100, complicite: 25, multiplicateurRafale: 2, serie: 50 };
+
+/** Une série de bonnes réponses d'affilée rapporte un bonus tous les SERIE_PAS. */
+export const SERIE_PAS = 3;
 export const CHRONO = { normal: 20, petit: 30 };
 
 export const MANCHES = {
@@ -324,6 +327,12 @@ function genererRafale(ctx, actifId, taille = 30) {
   return pool;
 }
 
+/** Une « question en or » (points doublés) au hasard, jamais la première de la manche. */
+function marquerOr(etapes) {
+  if (etapes.length >= 3) etapes[1 + Math.floor(Math.random() * (etapes.length - 1))].or = true;
+  return etapes;
+}
+
 /**
  * Génère toutes les manches d'une partie, à partir des réponses connues.
  */
@@ -340,7 +349,7 @@ export function genererManches(donnees, dureeId) {
       if (e) quiz.push(e);
     }
   }
-  if (quiz.length) manches.push({ id: 'quiz', etapes: quiz });
+  if (quiz.length) manches.push({ id: 'quiz', etapes: marquerOr(quiz) });
 
   const vf = [];
   for (let t = 0; t < duree.m2; t++) {
@@ -349,7 +358,7 @@ export function genererManches(donnees, dureeId) {
       if (e) vf.push(e);
     }
   }
-  if (vf.length) manches.push({ id: 'vraifaux', etapes: vf });
+  if (vf.length) manches.push({ id: 'vraifaux', etapes: marquerOr(vf) });
 
   const qui = [];
   for (let t = 0; t < duree.m3; t++) {
@@ -358,7 +367,7 @@ export function genererManches(donnees, dureeId) {
       if (e) qui.push(e);
     }
   }
-  if (qui.length) manches.push({ id: 'qui', etapes: qui });
+  if (qui.length) manches.push({ id: 'qui', etapes: marquerOr(qui) });
 
   const rafale = ordre
     .map((actifId) => ({ actifId, secondes: duree.rafale, pool: genererRafale(ctx, actifId), resultats: [] }))
@@ -381,7 +390,24 @@ export function pointsEtape(mancheId, etape) {
     const base = etape.options === OPTIONS_VF || etape.options?.[0]?.id === 'vrai' ? POINTS.vraifaux : POINTS.quiz;
     return base * POINTS.multiplicateurRafale;
   }
-  return POINTS[mancheId];
+  return POINTS[mancheId] * (etape.or ? 2 : 1);
+}
+
+/**
+ * Série en cours du joueur actif, en comptant l'étape `etapeCourante` si elle est réussie.
+ * Parcourt les manches dans l'ordre (la rafale n'entre pas dans les séries).
+ */
+export function serieAvant(partie, actifId, etapeCourante) {
+  let serie = 0;
+  for (const manche of partie.manches) {
+    if (manche.id === 'rafale') continue;
+    for (const e of manche.etapes) {
+      if (e === etapeCourante) return serie;
+      if (e.actifId !== actifId || !e.resultat) continue;
+      serie = e.resultat.correct ? serie + 1 : 0;
+    }
+  }
+  return serie;
 }
 
 /** Calcule les scores à partir des résultats enregistrés dans la partie. */
@@ -399,7 +425,7 @@ export function calculerScores(partie) {
     }
     for (const e of manche.etapes) {
       if (!e.resultat?.correct) continue;
-      scores[e.actifId] += pointsEtape(manche.id, e);
+      scores[e.actifId] += pointsEtape(manche.id, e) + (e.resultat.bonus ?? 0);
       if (individuel && manche.id !== 'qui' && scores[e.sujetId] !== undefined) scores[e.sujetId] += POINTS.complicite;
     }
   }
@@ -452,6 +478,20 @@ export function titresPodium(partie, parId) {
       const j = parId[meilleur.id];
       titres.push({ emoji: '⚡', joueurId: j.id, texte: `${accord(j, 'Roi', 'Reine')} de la rafale (${meilleur.ok} bonnes réponses)` });
     }
+  }
+
+  let meilleureSerie = { id: null, n: 0 };
+  const series = {};
+  for (const manche of partie.manches) {
+    if (manche.id === 'rafale') continue;
+    for (const e of manche.etapes) {
+      if (!e.resultat) continue;
+      series[e.actifId] = e.resultat.correct ? (series[e.actifId] ?? 0) + 1 : 0;
+      if (series[e.actifId] > meilleureSerie.n) meilleureSerie = { id: e.actifId, n: series[e.actifId] };
+    }
+  }
+  if (meilleureSerie.n >= SERIE_PAS && parId[meilleureSerie.id]) {
+    titres.push({ emoji: '🔥', joueurId: meilleureSerie.id, texte: `Série record : ${meilleureSerie.n} bonnes réponses d'affilée` });
   }
 
   const mysteres = Object.entries(devine)

@@ -1,9 +1,10 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import EnTete from '../composants/EnTete.svelte';
   import Avatar from '../composants/Avatar.svelte';
   import Bouton from '../composants/Bouton.svelte';
-  import { retour } from '../lib/etat.svelte.js';
-  import { db, listerJoueurs, enregistrerJoueur, supprimerJoueur } from '../lib/db.js';
+  import { retour, aller } from '../lib/etat.svelte.js';
+  import { db, listerJoueurs, enregistrerJoueur, supprimerJoueur, reponsesDe, viderReponses } from '../lib/db.js';
   import { AVATARS, ROLES, COULEURS, AGE_MIN, AGE_MAX, couleurLibre, tranche, TRANCHES } from '../lib/joueurs.js';
   import { sons } from '../lib/audio.js';
 
@@ -17,11 +18,14 @@
   let existant = $state(null);
   let confirmer = $state(false);
   let erreur = $state('');
+  let nbReponses = $state(0);
+  let confirmerVider = $state(false);
 
   listerJoueurs().then(async (joueurs) => {
     if (id) {
       existant = await db.joueurs.get(id);
       if (existant) {
+        nbReponses = (await reponsesDe(id)).filter((r) => !r.passee).length;
         nom = existant.nom;
         emoji = existant.emoji;
         ageSaisi = new Date().getFullYear() - existant.anneeNaissance;
@@ -43,20 +47,41 @@
     sons.clic();
   }
 
+  async function sauver() {
+    if (!nom.trim()) return !(erreur = 'Il manque le nom.');
+    if (!role) return !(erreur = 'Choisis le rôle dans la famille.');
+    existant = { ...(existant ?? {}), nom: nom.trim(), emoji, anneeNaissance: new Date().getFullYear() - ageSaisi, role, couleur };
+    existant.id = await enregistrerJoueur($state.snapshot(existant));
+    return true;
+  }
+
   async function enregistrer() {
-    if (!nom.trim()) return (erreur = 'Il manque le nom.');
-    if (!role) return (erreur = 'Choisis le rôle dans la famille.');
-    await enregistrerJoueur({
-      ...(existant ?? {}),
-      nom: nom.trim(),
-      emoji,
-      anneeNaissance: new Date().getFullYear() - ageSaisi,
-      role,
-      couleur
-    });
+    if (!(await sauver())) return;
     sons.bonne();
     retour();
   }
+
+  /** Enregistre la fiche, puis ouvre le questionnaire (ajout ou modification). */
+  async function questionnaire(params) {
+    if (!(await sauver())) return;
+    aller('questionnaire', { joueurs: [existant.id], seul: true, ...params });
+  }
+
+  async function vider() {
+    await viderReponses(existant.id);
+    nbReponses = 0;
+    confirmerVider = false;
+    sons.whoosh();
+  }
+
+  async function basculerArchive() {
+    if (!(await sauver())) return;
+    existant.archive = !existant.archive;
+    await enregistrerJoueur($state.snapshot(existant));
+    sons.pop();
+    retour();
+  }
+
 
   async function supprimer() {
     await supprimerJoueur(existant.id);
@@ -68,8 +93,28 @@
 
 <section class="fiche">
   <div class="apercu">
-    {#key emoji + couleur}<div class="pop"><Avatar joueur={apercu} taille={110} /></div>{/key}
+    {#key emoji + couleur}<div class="pop"><Avatar joueur={apercu} taille={tp(110)} /></div>{/key}
   </div>
+
+  {#if existant?.id}
+    <div class="bloc-reponses">
+      <p class="titre-bloc">🗂️ Réponses au questionnaire : <strong>{nbReponses}</strong>{#if existant.archive} · 📦 archivé{/if}</p>
+      <div class="actions-reponses">
+        <Bouton variante="carte" taille="petit" onclick={() => questionnaire({})}>➕ Ajouter</Bouton>
+        <Bouton variante="carte" taille="petit" desactive={!nbReponses} onclick={async () => (await sauver()) && aller('reponses', { id: existant.id })}>✏️ Modifier</Bouton>
+        <Bouton variante="carte" taille="petit" desactive={!nbReponses} onclick={() => (confirmerVider = true)}>🧹 Vider</Bouton>
+      </div>
+      {#if confirmerVider}
+        <div class="confirmer">
+          <p>Effacer les {nbReponses} réponses de {existant.nom} ? Le profil est conservé.</p>
+          <div class="ligne">
+            <Bouton variante="carte" onclick={() => (confirmerVider = false)}>Annuler</Bouton>
+            <Bouton variante="danger" onclick={vider}>Tout effacer</Bouton>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   <label class="champ">
     <span>Nom</span>
@@ -118,7 +163,8 @@
 
   <Bouton taille="grand" large onclick={enregistrer}>✅ Enregistrer</Bouton>
 
-  {#if existant}
+  {#if existant?.id}
+    <Bouton variante="carte" large onclick={basculerArchive}>{existant.archive ? '📤 Remettre en jeu' : '📦 Archiver (absent des parties)'}</Bouton>
     {#if confirmer}
       <div class="confirmer">
         <p>Supprimer {existant.nom} et toutes ses réponses ?</p>
@@ -248,6 +294,27 @@
     aspect-ratio: 1;
     font-size: 30px;
     transition: transform var(--d-rapide);
+  }
+  .bloc-reponses {
+    display: flex;
+    flex-direction: column;
+    gap: var(--e-3);
+    padding: var(--e-3) var(--e-4);
+    border: 2px solid var(--bord);
+    border-radius: var(--r-moyen);
+    background: var(--carte);
+  }
+  .titre-bloc {
+    font-weight: 600;
+    text-align: center;
+  }
+  .titre-bloc strong {
+    color: var(--or);
+  }
+  .actions-reponses {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--e-2);
   }
   .erreur {
     color: var(--rouge);

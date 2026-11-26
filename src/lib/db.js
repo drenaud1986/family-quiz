@@ -52,6 +52,12 @@ export async function enregistrerReponse(joueurId, questionId, valeur) {
   return db.reponses.put(donnees);
 }
 
+export const reponsesDe = (joueurId) => db.reponses.where('joueurId').equals(joueurId).toArray();
+
+export const supprimerReponse = (id) => db.reponses.delete(id);
+
+export const viderReponses = (joueurId) => db.reponses.where('joueurId').equals(joueurId).delete();
+
 // ---------- Historique ----------
 
 export const listerHistorique = () => db.historique.toArray();

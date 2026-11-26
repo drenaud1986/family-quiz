@@ -61,14 +61,13 @@ import { typo } from '../lib/grammaire.js';
     <rect x="80" y="196" width="40" height="6" rx="3" fill="#ffc83d" opacity=".8" />
     <rect x="80" y="208" width="40" height="6" rx="3" fill="#ffc83d" opacity=".5" />
 
-    <!-- nœud papillon -->
-    <path d="M100 146 L72 132 L72 162 Z M100 146 L128 132 L128 162 Z" fill="#ff4fa3" />
-    <circle cx="100" cy="146" r="8" fill="#ff7fc0" />
-
     <!-- tête -->
     <circle cx="100" cy="86" r="70" fill="url(#tete-or)" />
     <circle cx="100" cy="86" r="70" fill="url(#grille)" />
     <circle cx="100" cy="86" r="66" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="4" />
+    <!-- nœud papillon, devant la tête -->
+    <path d="M100 160 L72 145 L72 175 Z M100 160 L128 145 L128 175 Z" fill="#ff4fa3" stroke="#c2186b" stroke-width="2" stroke-linejoin="round" />
+    <circle cx="100" cy="160" r="8" fill="#ff7fc0" stroke="#c2186b" stroke-width="2" />
 
     <!-- visage -->
     <g class="yeux">

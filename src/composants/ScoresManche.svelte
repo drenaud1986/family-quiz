@@ -1,4 +1,5 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import { onMount } from 'svelte';
   import { flip } from 'svelte/animate';
   import Avatar from './Avatar.svelte';
@@ -38,7 +39,7 @@
 
 <section class="scores">
   <h1>{titre}</h1>
-  <Mascotte humeur={revele ? 'content' : 'suspense'} taille={110} bulle={enTete} />
+  <Mascotte humeur={revele ? 'content' : 'suspense'} taille={tp(110)} bulle={enTete} />
 
   {#if equipes}
     <div class="equipes">

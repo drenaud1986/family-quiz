@@ -1,4 +1,5 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import { onMount } from 'svelte';
   import Avatar from './Avatar.svelte';
   import Bouton from './Bouton.svelte';
@@ -8,6 +9,7 @@
   import { dire } from '../lib/appareil.js';
   import { grandesConfettis } from '../lib/confettis.js';
   import { pause } from '../lib/hasard.js';
+  import { lireReglages, ecrireReglage } from '../lib/db.js';
 
   let { partie, parId, scores, onrejouer, onaccueil } = $props();
 
@@ -18,6 +20,21 @@
 
   let etape = $state(0); // 0 rien, 1 troisième, 2 deuxième, 3 premier
   let fin = $state(false);
+  let records = $state([]);
+
+  /** Records personnels : meilleur score de chaque candidat, toutes émissions confondues. */
+  async function majRecords() {
+    const anciens = (await lireReglages()).records ?? {};
+    const nouveaux = { ...anciens };
+    const battus = [];
+    for (const c of classement) {
+      const avant = anciens[c.id];
+      if (avant === undefined || c.score > avant) nouveaux[c.id] = c.score;
+      if (avant !== undefined && c.score > avant) battus.push({ id: c.id, score: c.score, avant });
+    }
+    await ecrireReglage('records', nouveaux);
+    return battus;
+  }
 
   function annonceVainqueur() {
     if (equipes) {
@@ -32,6 +49,7 @@
   }
 
   onMount(async () => {
+    const recordsBattus = majRecords();
     sons.roulement(1.6);
     await dire('Le moment tant attendu… le podium !');
     await pause(400);
@@ -50,7 +68,12 @@
     sons.fanfare();
     sons.applaudissements(3.5);
     grandesConfettis();
-    dire(annonceVainqueur());
+    await dire(annonceVainqueur());
+    records = await recordsBattus;
+    if (records.length) {
+      sons.serie();
+      dire(records.length > 1 ? 'Et plusieurs records personnels sont battus !' : `Et nouveau record personnel pour ${parId[records[0].id]?.nom} !`);
+    }
   });
 
   function visible(index) {
@@ -63,7 +86,7 @@
 
 <section class="podium">
   <h1>🏆 Le podium</h1>
-  <Mascotte humeur={fin ? 'fete' : 'suspense'} taille={110} bulle={fin ? annonceVainqueur() : 'Roulement de tambour…'} />
+  <Mascotte humeur={fin ? 'fete' : 'suspense'} taille={tp(110)} bulle={fin ? annonceVainqueur() : 'Roulement de tambour…'} />
 
   {#if equipes && fin}
     <div class="equipes">
@@ -83,7 +106,7 @@
             <Avatar joueur={parId[m.id]} taille={i === 1 ? 84 : 64} saute={i === 1 && fin} nom />
             <strong class="score">{m.score} pts</strong>
           </div>
-          <div class="marche" style="height: {hauteurs[i]}px; --couleur: {parId[m.id]?.couleur}">
+          <div class="marche" style="height: {tp(hauteurs[i])}px; --couleur: {parId[m.id]?.couleur}">
             <span>{medailles[i]}</span>
           </div>
         </div>
@@ -98,6 +121,18 @@
           <li><span class="rang">{i + 4}.</span> <Avatar joueur={parId[c.id]} taille={32} /> {parId[c.id]?.nom} <strong>{c.score} pts</strong></li>
         {/each}
       </ol>
+    {/if}
+
+    {#if records.length}
+      <div class="records">
+        {#each records as r, i}
+          <div class="record" style="--i: {i}">
+            <span class="emoji">🏅</span>
+            <Avatar joueur={parId[r.id]} taille={36} />
+            <span>Nouveau record pour {parId[r.id]?.nom} : <strong>{r.score} pts</strong> <small>(avant : {r.avant})</small></span>
+          </div>
+        {/each}
+      </div>
     {/if}
 
     {#if titres.length}
@@ -162,7 +197,7 @@
     justify-content: center;
     gap: var(--e-2);
     width: 100%;
-    min-height: 330px;
+    min-height: clamp(220px, 36vh, 330px);
   }
   .colonne {
     flex: 1;
@@ -214,6 +249,32 @@
   }
   .autres strong {
     margin-left: auto;
+  }
+  .records {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--e-2);
+  }
+  .record {
+    display: flex;
+    align-items: center;
+    gap: var(--e-3);
+    padding: var(--e-3);
+    border-radius: var(--r-moyen);
+    background: linear-gradient(90deg, var(--or-voile), transparent);
+    border: 2px solid var(--or);
+    font-weight: 600;
+    animation: arrive var(--d-lente) cubic-bezier(0.34, 1.56, 0.64, 1) both, brille 1s ease-in-out 0.6s 3 alternate;
+    animation-delay: calc(var(--i) * 0.3s);
+    --couleur: var(--or);
+  }
+  .record .emoji {
+    font-size: var(--t-emoji);
+  }
+  .record small {
+    color: var(--texte-doux);
+    font-weight: 400;
   }
   .titres {
     width: 100%;

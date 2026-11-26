@@ -1,4 +1,5 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import EnTete from '../composants/EnTete.svelte';
   import Avatar from '../composants/Avatar.svelte';
   import Bouton from '../composants/Bouton.svelte';
@@ -13,7 +14,9 @@
   let mode = $state('individuel');
   let duree = $state(reglages.dureeParDefaut);
 
-  listerJoueurs().then((j) => {
+  listerJoueurs().then((tous) => {
+    // Les candidats archivés ne jouent pas.
+    const j = tous.filter((x) => !x.archive);
     joueurs = j;
     presents = new Set(j.map((x) => x.id));
   });
@@ -46,7 +49,7 @@
     <div class="presents">
       {#each joueurs as j (j.id)}
         <button class="present" class:absent={!presents.has(j.id)} onclick={() => basculer(j.id)}>
-          <Avatar joueur={j} taille={64} nom eteint={!presents.has(j.id)} />
+          <Avatar joueur={j} taille={tp(64)} nom eteint={!presents.has(j.id)} />
           <span class="coche">{presents.has(j.id) ? '✅' : '➕'}</span>
         </button>
       {/each}

@@ -58,7 +58,7 @@ window.addEventListener('popstate', () => {
 
 // ---------- Réglages ----------
 
-export const REGLAGES_DEFAUT = { son: true, musique: true, voix: true, vitesseVoix: 1, dureeParDefaut: 'normale' };
+export const REGLAGES_DEFAUT = { son: true, musique: true, voix: true, vitesseVoix: 1, hauteurVoix: 1.05, nomVoix: '', dureeParDefaut: 'normale' };
 
 export const reglages = $state({ ...REGLAGES_DEFAUT });
 
@@ -75,5 +75,5 @@ export async function changerReglage(cle, valeur) {
 
 function appliquerReglages() {
   configurerAudio({ son: reglages.son, musique: reglages.musique });
-  configurerVoix({ voix: reglages.voix, vitesseVoix: reglages.vitesseVoix });
+  configurerVoix({ voix: reglages.voix, vitesseVoix: reglages.vitesseVoix, hauteurVoix: reglages.hauteurVoix, nomVoix: reglages.nomVoix });
 }

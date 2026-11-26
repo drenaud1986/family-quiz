@@ -2,10 +2,21 @@
   // Décor de plateau télé : fond, projecteurs, rampe d'ampoules.
   let { intense = false } = $props();
   const ampoules = Array.from({ length: 14 });
+  // Étoiles scintillantes : positions fixes « pseudo-aléatoires » pour un rendu stable.
+  const etoiles = Array.from({ length: 22 }, (_, i) => ({
+    x: (i * 37 + 11) % 100,
+    y: (i * 53 + 7) % 100,
+    taille: 2 + ((i * 7) % 4),
+    delai: (i * 0.37) % 4,
+    duree: 3 + ((i * 13) % 5)
+  }));
 </script>
 
 <div class="plateau" class:intense aria-hidden="true">
   <div class="halo"></div>
+  {#each etoiles as e}
+    <span class="etoile" style="left: {e.x}%; top: {e.y}%; --t: {e.taille}px; --delai: {e.delai}s; --duree: {e.duree}s"></span>
+  {/each}
   <div class="projecteur gauche"></div>
   <div class="projecteur droite"></div>
   <div class="rampe haut">
@@ -33,6 +44,23 @@
     inset: -20%;
     background: radial-gradient(circle at 50% 40%, rgba(255, 200, 61, 0.12), transparent 45%);
     animation: respire 6s ease-in-out infinite;
+  }
+  .etoile {
+    position: absolute;
+    width: var(--t);
+    height: var(--t);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px #fff, 0 0 12px var(--or);
+    opacity: 0;
+    animation: scintille var(--duree) ease-in-out var(--delai) infinite;
+  }
+  .intense .etoile {
+    animation-duration: calc(var(--duree) / 2);
+  }
+  @keyframes scintille {
+    0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+    50% { opacity: 0.9; transform: translateY(-14px) scale(1.2); }
   }
   .projecteur {
     position: absolute;

@@ -1,13 +1,14 @@
 <script>
+  import { tp } from '../lib/ecran.svelte.js';
   import Relais from '../composants/Relais.svelte';
   import Avatar from '../composants/Avatar.svelte';
   import Bouton from '../composants/Bouton.svelte';
   import Mascotte from '../composants/Mascotte.svelte';
   import GrilleChoix from '../composants/GrilleChoix.svelte';
-  import { aller, accueil, intercepterRetour } from '../lib/etat.svelte.js';
+  import { aller, accueil, retour, intercepterRetour } from '../lib/etat.svelte.js';
   import { db, listerJoueurs, listerReponses, listerHistorique, enregistrerReponse, enregistrerPartie } from '../lib/db.js';
   import { preparerQuestionnaire, estPremiereFois } from '../lib/selection.js';
-  import { categorieParId, choixParId } from '../lib/banque.js';
+  import { categorieParId, choixParId, questionParId } from '../lib/banque.js';
   import { remplir, majuscule, typo } from '../lib/grammaire.js';
   import { tranche } from '../lib/joueurs.js';
   import { genererManches, formerEquipes } from '../lib/jeu.js';
@@ -15,7 +16,9 @@
   import { sons } from '../lib/audio.js';
   import { onDestroy } from 'svelte';
 
-  let { joueurs: idsPresents, mode, duree, supplement = false } = $props();
+  // seul : questionnaire lancé depuis la fiche d'un candidat (pas d'émission ensuite).
+  // questions : liste imposée d'identifiants (modification de réponses).
+  let { joueurs: idsPresents, mode, duree, supplement = false, seul = false, questions: idsQuestions = null } = $props();
 
   let tous = $state([]);
   let ordre = $state([]);
@@ -35,7 +38,7 @@
 
   const arreter = intercepterRetour(() => {
     taire();
-    accueil();
+    seul ? retour() : accueil();
   });
   onDestroy(() => {
     arreter();
@@ -43,7 +46,7 @@
   });
 
   listerJoueurs().then((j) => {
-    tous = j;
+    tous = j.filter((x) => !x.archive || idsPresents.includes(x.id));
     ordre = idsPresents.map((id) => j.find((x) => x.id === id)).filter(Boolean);
     phase = 'relais';
   });
@@ -51,7 +54,9 @@
   async function commencerJoueur() {
     const reponses = await listerReponses();
     premiereFois = estPremiereFois(joueur, reponses);
-    liste = preparerQuestionnaire(joueur, tous, reponses, supplement ? 5 : null);
+    liste = idsQuestions
+      ? idsQuestions.map((id) => ({ question: questionParId[id] })).filter((x) => x.question)
+      : preparerQuestionnaire(joueur, tous, reponses, seul ? 10 : supplement ? 5 : null);
     indexQuestion = 0;
     if (!liste.length) {
       phase = 'merci';
@@ -62,6 +67,7 @@
   }
 
   function texteAccueil() {
+    if (idsQuestions) return `${joueur.nom}, on modifie ta réponse ? Personne ne regarde !`;
     return premiereFois
       ? `Bienvenue ${joueur.nom} ! Réponds sincèrement à ces ${liste.length} questions. Personne ne regarde !`
       : `Re-bonjour ${joueur.nom} ! Voici ${liste.length} nouvelles questions rien que pour toi.`;
@@ -96,6 +102,12 @@
     suivante();
   }
 
+  function passer() {
+    taire();
+    sons.clic();
+    suivante();
+  }
+
   function suivante() {
     if (indexQuestion < liste.length - 1) {
       indexQuestion++;
@@ -109,6 +121,7 @@
   }
 
   async function joueurSuivant() {
+    if (seul) return retour();
     if (indexJoueur < ordre.length - 1) {
       indexJoueur++;
       phase = 'relais';
@@ -127,7 +140,8 @@
       .sort((a, b) => b.date - a.date)
       .slice(0, 3)
       .map((p) => p.id);
-    const manches = genererManches({ joueursPartie: presents, tousJoueurs: tous, reponses, historique, partiesRecentes, equipes }, duree);
+    // Seuls les candidats présents comptent : aucune question ne parle d'un absent.
+    const manches = genererManches({ joueursPartie: presents, tousJoueurs: presents, reponses, historique, partiesRecentes, equipes }, duree);
     const total = manches.reduce((n, m) => n + (m.etapes?.length ?? m.joueurs.length), 0);
     if (manches.length < 2 || total < presents.length * 2) {
       phase = 'manque';
@@ -158,11 +172,12 @@
       {joueur}
       consigne="Les autres, on ferme les yeux ou on regarde ailleurs ! Le questionnaire est secret."
       onpret={commencerJoueur}
+      secondaire={seul ? null : { label: '⏭️ Passer les questions et lancer l’émission', onclick: lancerEmission }}
     />
   {:else if phase === 'accueil'}
     <div class="centre">
-      <Mascotte humeur="parle" taille={170} bulle={texteAccueil()} />
-      <Avatar {joueur} taille={90} nom />
+      <Mascotte humeur="parle" taille={tp(170)} bulle={texteAccueil()} />
+      <Avatar {joueur} taille={tp(90)} nom />
       <Bouton taille="grand" onclick={demarrerQuestions}>C’est parti ! 🚀</Bouton>
     </div>
   {:else if phase === 'question' && q}
@@ -177,7 +192,7 @@
     {#key indexQuestion}
       <div class="carte">
         <div class="categorie">{categorieParId[q.categorie]?.emoji} {categorieParId[q.categorie]?.label}</div>
-        <h1 class="question" class:petit-texte={remplir(q.questionnaire, joueur).length > 70}>{typo(remplir(q.questionnaire, joueur))}</h1>
+        <h1 class="question" class:petit-texte={remplir(q.questionnaire, joueur).length > 55}>{typo(remplir(q.questionnaire, joueur))}</h1>
 
         {#if item.miseAJour && confirmationMiseAJour}
           <div class="mise-a-jour">
@@ -190,10 +205,7 @@
             </div>
           </div>
         {:else if q.type === 'choix' && !modeAutre}
-          <GrilleChoix options={q.choix.map((c) => ({ ...c, label: majuscule(c.label) }))} onchoix={(o) => repondre({ choixId: o.id })} />
-          {#if q.autre && !petit}
-            <Bouton variante="carte" large onclick={() => (modeAutre = true)}>✏️ Autre chose…</Bouton>
-          {/if}
+          <GrilleChoix options={q.choix.map((c) => ({ ...c, label: majuscule(c.label) }))} compact={q.choix.length > 6} onchoix={(o) => repondre({ choixId: o.id })} />
         {:else if q.type === 'duel'}
           <div class="duel">
             {#each q.choix as c, i}
@@ -228,19 +240,22 @@
     {/key}
 
     <div class="bas">
-      <Bouton variante="discret" onclick={() => repondre({ passee: true })}>Je préfère passer ⏭️</Bouton>
+      {#if q.type === 'choix' && q.autre && !petit && !modeAutre && !(item.miseAJour && confirmationMiseAJour)}
+        <Bouton variante="carte" onclick={() => (modeAutre = true)}>✏️ Autre…</Bouton>
+      {/if}
+      <Bouton variante="carte" large onclick={passer}>⏭️ Passer</Bouton>
     </div>
   {:else if phase === 'merci'}
     <div class="centre">
       <div class="bravo">🎉</div>
-      <Mascotte humeur="fete" taille={160} bulle={liste.length ? `Merci ${joueur.nom} ! Tes réponses sont bien cachées.` : `Rien de nouveau pour ${joueur.nom} aujourd'hui !`} />
-      <Bouton taille="grand" onclick={joueurSuivant}>{indexJoueur < ordre.length - 1 ? 'Candidat suivant ➡️' : 'Lancer l’émission ! 🎬'}</Bouton>
+      <Mascotte humeur="fete" taille={tp(160)} bulle={liste.length ? `Merci ${joueur.nom} ! Tes réponses sont bien cachées.` : `Rien de nouveau pour ${joueur.nom} aujourd'hui !`} />
+      <Bouton taille="grand" onclick={joueurSuivant}>{seul ? 'Terminer ✅' : indexJoueur < ordre.length - 1 ? 'Candidat suivant ➡️' : 'Lancer l’émission ! 🎬'}</Bouton>
     </div>
   {:else if phase === 'lancement'}
-    <div class="centre"><Mascotte humeur="suspense" taille={160} bulle="Je prépare les questions…" /></div>
+    <div class="centre"><Mascotte humeur="suspense" taille={tp(160)} bulle="Je prépare les questions…" /></div>
   {:else if phase === 'manque'}
     <div class="centre">
-      <Mascotte humeur="decu" taille={150} bulle="Il me manque des réponses pour préparer une belle émission. On répond à quelques questions de plus ?" />
+      <Mascotte humeur="decu" taille={tp(150)} bulle="Il me manque des réponses pour préparer une belle émission. On répond à quelques questions de plus ?" />
       <Bouton taille="grand" onclick={encorePlus}>➕ Encore quelques questions</Bouton>
       <Bouton variante="discret" onclick={accueil}>Retour à l’accueil</Bouton>
     </div>
@@ -252,7 +267,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: var(--e-5) var(--e-4);
+    padding: var(--e-3) var(--e-4) var(--e-2);
   }
   .centre {
     flex: 1;
@@ -267,7 +282,7 @@
     display: flex;
     align-items: center;
     gap: var(--e-3);
-    margin-bottom: var(--e-4);
+    margin-bottom: var(--e-3);
   }
   .progression {
     flex: 1;
@@ -289,7 +304,7 @@
   .carte {
     display: flex;
     flex-direction: column;
-    gap: var(--e-4);
+    gap: var(--e-3);
     animation: carte var(--d-normale) cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .categorie {
@@ -316,7 +331,7 @@
     gap: var(--e-2);
   }
   .carte-duel {
-    min-height: 140px;
+    min-height: clamp(84px, 16vh, 140px);
     border: 3px solid var(--bord);
     border-radius: var(--r-grand);
     background: var(--carte-forte);
@@ -335,7 +350,7 @@
     border-color: var(--or);
   }
   .carte-duel .emoji {
-    font-size: 56px;
+    font-size: var(--t-emoji-grand);
   }
   .ou {
     align-self: center;
@@ -382,13 +397,20 @@
     justify-content: center;
   }
   .bas {
+    position: sticky;
+    bottom: 0;
     margin-top: auto;
-    padding-top: var(--e-4);
+    padding: var(--e-3) 0 var(--e-2);
+    background: linear-gradient(transparent, var(--fond-1) 40%);
+    gap: var(--e-2);
     display: flex;
     justify-content: center;
   }
+  .bas :global(.bouton) {
+    flex: 1;
+  }
   .bravo {
-    font-size: 72px;
+    font-size: var(--t-emoji-grand);
     animation: bravo 0.8s ease-in-out infinite alternate;
   }
   @keyframes carte {

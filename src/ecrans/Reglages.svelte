@@ -4,10 +4,32 @@
   import { reglages, changerReglage } from '../lib/etat.svelte.js';
   import { DUREES } from '../lib/jeu.js';
   import { toutEffacer } from '../lib/db.js';
-  import { dire } from '../lib/appareil.js';
+  import { dire, chargerVoix } from '../lib/appareil.js';
   import { sons } from '../lib/audio.js';
 
   let etapeEffacement = $state(0);
+  let voix = $state([]);
+  chargerVoix().then((v) => (voix = v.map((x) => ({ nom: x.name, langue: x.lang }))));
+
+  const PHRASE_TEST = 'Bonsoir et bienvenue sur le plateau de Family Quiz !';
+  const hauteurs = [
+    { v: 0.75, label: 'Grave' },
+    { v: 1.05, label: 'Normale' },
+    { v: 1.4, label: 'Aiguë' },
+    { v: 1.9, label: 'Rigolote' }
+  ];
+
+  /** Nom lisible : « Google français (France) » plutôt que l'identifiant brut. */
+  function libelleVoix(v, i) {
+    const pays = { 'fr-FR': 'France', 'fr-CA': 'Québec', 'fr-BE': 'Belgique', 'fr-CH': 'Suisse' }[v.langue] ?? v.langue;
+    const court = v.nom.replace(/Microsoft |Google |Online (Natural)| - .*$/g, '').trim();
+    return `${court || 'Voix ' + (i + 1)} · ${pays}`;
+  }
+
+  async function choisirVoix(nom) {
+    await changerReglage('nomVoix', nom);
+    dire(PHRASE_TEST);
+  }
 
   const interrupteurs = [
     { cle: 'son', label: 'Effets sonores', emoji: '🔊' },
@@ -32,13 +54,31 @@
   {/each}
 
   <div class="bloc">
+    <p>Voix du présentateur</p>
+    {#if voix.length}
+      <div class="voix">
+        {#each voix as v, i (v.nom)}
+          <button class="choix-voix" class:actif={reglages.nomVoix === v.nom || (!reglages.nomVoix && i === 0)} onclick={() => choisirVoix(v.nom)}>
+            <span>🎙️ {libelleVoix(v, i)}</span><span class="ecouter">▶️</span>
+          </button>
+        {/each}
+      </div>
+    {:else}
+      <p class="aide">Aucune autre voix française n’est installée sur cet appareil. Sur Android : Paramètres › Accessibilité › Synthèse vocale.</p>
+    {/if}
+    <p>Ton de la voix</p>
+    <div class="segments">
+      {#each hauteurs as h}
+        <button class:actif={reglages.hauteurVoix === h.v} onclick={async () => (await changerReglage('hauteurVoix', h.v), dire(PHRASE_TEST))}>{h.label}</button>
+      {/each}
+    </div>
     <p>Vitesse de la voix</p>
     <div class="segments">
       {#each vitesses as s}
         <button class:actif={reglages.vitesseVoix === s.v} onclick={() => changerReglage('vitesseVoix', s.v)}>{s.label}</button>
       {/each}
     </div>
-    <Bouton variante="carte" taille="petit" onclick={() => dire('Bonsoir et bienvenue sur le plateau de Family Quiz !')}>▶️ Tester la voix</Bouton>
+    <Bouton variante="carte" taille="petit" onclick={() => dire(PHRASE_TEST)}>▶️ Tester la voix</Bouton>
   </div>
 
   <div class="bloc">
@@ -149,6 +189,37 @@
     border-color: var(--or);
     color: var(--texte-sur-or);
     font-weight: 600;
+  }
+  .voix {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--e-2);
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  .choix-voix {
+    min-height: var(--cible);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e-2);
+    padding: 0 var(--e-4);
+    border: 2px solid var(--bord);
+    border-radius: var(--r-petit);
+    background: transparent;
+    font-size: var(--t-normal);
+    text-align: left;
+  }
+  .choix-voix.actif {
+    border-color: var(--or);
+    background: var(--or-voile);
+    font-weight: 600;
+  }
+  .aide {
+    font-weight: 400 !important;
+    color: var(--texte-doux);
+    font-size: var(--t-petit);
   }
   .danger {
     border-color: rgba(255, 90, 90, 0.5);

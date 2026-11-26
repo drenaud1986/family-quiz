@@ -7,11 +7,12 @@
   import NouvellePartie from './ecrans/NouvellePartie.svelte';
   import Questionnaire from './ecrans/Questionnaire.svelte';
   import Emission from './ecrans/Emission.svelte';
+  import Reponses from './ecrans/Reponses.svelte';
   import { nav, chargerReglages } from './lib/etat.svelte.js';
   import { demanderStockagePersistant } from './lib/db.js';
   import { debloquerAudio } from './lib/audio.js';
 
-  const ecrans = { accueil: Accueil, joueurs: Joueurs, fiche: FicheJoueur, reglages: Reglages, nouvelle: NouvellePartie, questionnaire: Questionnaire, emission: Emission };
+  const ecrans = { accueil: Accueil, joueurs: Joueurs, fiche: FicheJoueur, reglages: Reglages, nouvelle: NouvellePartie, questionnaire: Questionnaire, emission: Emission, reponses: Reponses };
 
   let pret = $state(false);
   chargerReglages().then(() => (pret = true));
